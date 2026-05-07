@@ -2,6 +2,7 @@ let timetable, cities;
 let selectedCity;
 let enabledPrayers = {};
 let cityNames = [];
+let isInteractingWithCityResults = false;
 
 const PRAYER_LABELS = {
   "Fajr": "Subah",
@@ -179,6 +180,7 @@ function selectCity(city) {
   if (!city || city === selectedCity || !cities.cities[city]) {
     closeCityResults();
     if (citySearch) citySearch.blur();
+    isInteractingWithCityResults = false;
     return;
   }
 
@@ -192,6 +194,7 @@ function selectCity(city) {
     citySearch.value = "";
     citySearch.blur();
   }
+  isInteractingWithCityResults = false;
   closeCityResults();
 }
 
@@ -217,13 +220,34 @@ function renderCityResults(query, shouldOpen = true) {
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", String(city === selectedCity));
     item.dataset.city = city;
+    let startX = 0;
+    let startY = 0;
+    let moved = false;
     item.innerHTML = `
       <span class="city-result-name">${city}</span>
       ${city === selectedCity ? '<span class="city-result-current">Current</span>' : ''}
     `;
     item.addEventListener("pointerdown", event => {
-      event.preventDefault();
-      selectCity(city);
+      isInteractingWithCityResults = true;
+      moved = false;
+      startX = event.clientX;
+      startY = event.clientY;
+    });
+    item.addEventListener("pointermove", event => {
+      if (Math.abs(event.clientX - startX) > 8 || Math.abs(event.clientY - startY) > 8) {
+        moved = true;
+      }
+    });
+    item.addEventListener("pointerup", event => {
+      if (!moved) {
+        event.preventDefault();
+        selectCity(city);
+      } else {
+        isInteractingWithCityResults = false;
+      }
+    });
+    item.addEventListener("pointercancel", () => {
+      isInteractingWithCityResults = false;
     });
     cityResults.appendChild(item);
   });
@@ -264,6 +288,7 @@ function bindCitySearch() {
   });
 
   citySearch.addEventListener("blur", () => {
+    if (isInteractingWithCityResults) return;
     updateSelectedCityPlaceholder();
     closeCityResults();
   });

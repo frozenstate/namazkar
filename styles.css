@@ -192,6 +192,8 @@ small { color: var(--muted); }
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   z-index: 20;
   padding: 0.35rem;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 .city-results.open { display: block; }
 .city-result {
@@ -207,6 +209,7 @@ small { color: var(--muted); }
   gap: 0.75rem;
   cursor: pointer;
   text-align: left;
+  touch-action: pan-y;
 }
 .city-results,
 .city-results * {
