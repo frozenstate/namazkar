@@ -1,9 +1,21 @@
 let timetable, cities;
 let selectedCity;
 let enabledPrayers = {};
+let cityNames = [];
+
+const PRAYER_LABELS = {
+  "Fajr": "Subah",
+  "Sunrise": "Zawaal",
+  "Dhuhr": "Pishan",
+  "Asr": "Digar",
+  "Maghrib": "Shaam",
+  "Isha": "Khoftan"
+};
 
 const timesDiv = document.getElementById("times");
-const citySelect = document.getElementById("citySelect");
+const cityPicker = document.getElementById("cityPicker");
+const citySearch = document.getElementById("citySearch");
+const cityResults = document.getElementById("cityResults");
 // topbar elements
 const currentDateEl = document.getElementById("current-date");
 const currentTimeEl = document.getElementById("current-time");
@@ -79,6 +91,9 @@ async function loadData() {
 
   selectedCity =
     localStorage.getItem("city") || (cities?.base_city || Object.keys(cities.cities)[0]);
+  if (!cities.cities[selectedCity]) {
+    selectedCity = cities.base_city || Object.keys(cities.cities)[0];
+  }
 
   initTheme();
   populateCities();
@@ -87,21 +102,178 @@ async function loadData() {
 }
 
 function populateCities() {
-  citySelect.innerHTML = "";
-  Object.keys(cities.cities).forEach(city => {
-    const opt = document.createElement("option");
-    opt.value = city;
-    opt.textContent = city;
-    if (city === selectedCity) opt.selected = true;
-    citySelect.appendChild(opt);
+  cityNames = Object.keys(cities.cities);
+  updateSelectedCityPlaceholder();
+  bindCitySearch();
+  renderCityResults(citySearch?.value || "", false);
+}
+
+function getPrayerLabel(prayerKey) {
+  return PRAYER_LABELS[prayerKey] || prayerKey;
+}
+
+function normalizeText(value) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function scoreCity(query, city) {
+  if (!query) return 0;
+  const normalizedQuery = normalizeText(query);
+  const normalizedCity = normalizeText(city);
+  if (normalizedCity === normalizedQuery) return 10000;
+
+  let score = 0;
+  if (normalizedCity.startsWith(normalizedQuery)) score += 5000;
+
+  const containsIndex = normalizedCity.indexOf(normalizedQuery);
+  if (containsIndex >= 0) score += 3000 - containsIndex;
+
+  let cityIndex = 0;
+  let hits = 0;
+  for (const char of normalizedQuery) {
+    cityIndex = normalizedCity.indexOf(char, cityIndex);
+    if (cityIndex === -1) return -1;
+    hits += 1;
+    cityIndex += 1;
+  }
+
+  return score + (hits * 25) - normalizedCity.length;
+}
+
+function getMatchingCities(query) {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return cityNames.slice();
+  }
+
+  return cityNames
+    .map(city => ({ city, score: scoreCity(trimmed, city) }))
+    .filter(entry => entry.score >= 0)
+    .sort((a, b) => b.score - a.score || a.city.localeCompare(b.city))
+    .map(entry => entry.city);
+}
+
+function updateSelectedCityPlaceholder() {
+  if (citySearch && document.activeElement !== citySearch) {
+    citySearch.value = "";
+    citySearch.placeholder = selectedCity || "Search regions";
+    citySearch.dataset.currentCity = selectedCity || "";
+  }
+}
+
+function closeCityResults() {
+  if (cityResults) {
+    cityResults.classList.remove("open");
+    cityResults.innerHTML = "";
+  }
+}
+
+function openCityResults() {
+  if (cityResults) cityResults.classList.add("open");
+}
+
+function selectCity(city) {
+  if (!city || city === selectedCity || !cities.cities[city]) {
+    closeCityResults();
+    if (citySearch) citySearch.blur();
+    return;
+  }
+
+  selectedCity = city;
+  localStorage.setItem("city", selectedCity);
+  updateSelectedCityPlaceholder();
+  renderTimes();
+  scheduleNotifications();
+  renderCityResults("", false);
+  if (citySearch) {
+    citySearch.value = "";
+    citySearch.blur();
+  }
+  closeCityResults();
+}
+
+function renderCityResults(query, shouldOpen = true) {
+  if (!cityResults) return;
+
+  const matchingCities = getMatchingCities(query);
+  cityResults.innerHTML = "";
+
+  if (!matchingCities.length) {
+    const empty = document.createElement("div");
+    empty.className = "city-empty";
+    empty.textContent = "No matching regions";
+    cityResults.appendChild(empty);
+    if (shouldOpen) openCityResults();
+    return;
+  }
+
+  matchingCities.slice(0, 10).forEach(city => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "city-result";
+    item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", String(city === selectedCity));
+    item.dataset.city = city;
+    item.innerHTML = `
+      <span class="city-result-name">${city}</span>
+      ${city === selectedCity ? '<span class="city-result-current">Current</span>' : ''}
+    `;
+    item.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      selectCity(city);
+    });
+    cityResults.appendChild(item);
   });
 
-  citySelect.onchange = () => {
-    selectedCity = citySelect.value;
-    localStorage.setItem("city", selectedCity);
-    renderTimes();
-    scheduleNotifications();
-  };
+  if (shouldOpen) openCityResults();
+}
+
+function bindCitySearch() {
+  if (!citySearch || !cityResults) return;
+
+  citySearch.addEventListener("focus", () => {
+    citySearch.value = "";
+    citySearch.placeholder = "";
+    renderCityResults("", true);
+  });
+
+  citySearch.addEventListener("click", () => {
+    renderCityResults(citySearch.value, true);
+  });
+
+  citySearch.addEventListener("input", () => {
+    renderCityResults(citySearch.value);
+  });
+
+  citySearch.addEventListener("keydown", event => {
+    const firstResult = cityResults.querySelector(".city-result");
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (firstResult) {
+        selectCity(firstResult.dataset.city);
+      }
+    }
+    if (event.key === "Escape") {
+      updateSelectedCityPlaceholder();
+      closeCityResults();
+      citySearch.blur();
+    }
+  });
+
+  citySearch.addEventListener("blur", () => {
+    updateSelectedCityPlaceholder();
+    closeCityResults();
+  });
+
+  document.addEventListener("click", event => {
+    if (cityPicker && !cityPicker.contains(event.target)) {
+      updateSelectedCityPlaceholder();
+      closeCityResults();
+    }
+  });
 }
 
 function todayKey() {
@@ -159,6 +331,7 @@ function renderTimes() {
   for (const prayer in baseTimes) {
     const adjusted24 = addMinutes(baseTimes[prayer], offset);
     const adjusted = formatTime12(adjusted24);
+    const prayerLabel = getPrayerLabel(prayer);
     const row = document.createElement("div");
     row.className = "time";
     row.dataset.prayer = prayer;
@@ -173,7 +346,7 @@ function renderTimes() {
         <button type="button" class="${classes.join(" ")}" data-prayer="${prayer}" aria-pressed="${isOn}">
           <img class="icon-img" src="${iconSrc}" alt="Prayer notify" width="18" height="18" />
         </button>
-        <strong>${prayer}</strong>
+        <strong>${prayerLabel}</strong>
       </span>
       <span class="time-value">${adjusted}</span>`;
     timesDiv.appendChild(row);
@@ -233,7 +406,7 @@ function updateDayContext() {
   const isPhone = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
   const dateOpts = isPhone ? { weekday: 'short', month: 'short', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
   const dateFmt = new Intl.DateTimeFormat(undefined, dateOpts);
-  const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+  const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
   if (currentDateEl) currentDateEl.textContent = dateFmt.format(now);
   if (currentTimeEl) currentTimeEl.textContent = timeFmt.format(now);
 }
@@ -248,7 +421,7 @@ function findNextPrayer() {
     const at = parseTimeToDate(baseTimes[prayer], offset);
     if (at > now && (!next || at < next.at)) {
       const t24 = addMinutes(baseTimes[prayer], offset);
-      next = { name: prayer, at, timeStr: formatTime12(t24) };
+      next = { key: prayer, name: getPrayerLabel(prayer), at, timeStr: formatTime12(t24) };
     }
   }
   if (next) return next;
@@ -263,7 +436,7 @@ function findNextPrayer() {
     const at = parseTimeToDate(tTimes[prayer], offset, tomorrow);
     if (!first || at < first.at) {
       const t24 = addMinutes(tTimes[prayer], offset);
-      first = { name: prayer, at, timeStr: formatTime12(t24) };
+      first = { key: prayer, name: getPrayerLabel(prayer), at, timeStr: formatTime12(t24) };
     }
   }
   return first;
@@ -279,7 +452,7 @@ function updateNextPrayer() {
   // highlight row
   const prev = timesDiv.querySelector('.time.next');
   if (prev) prev.classList.remove('next');
-  const row = timesDiv.querySelector(`.time[data-prayer="${next.name}"]`);
+  const row = timesDiv.querySelector(`.time[data-prayer="${next.key}"]`);
   if (row) row.classList.add('next');
 }
 
@@ -352,8 +525,9 @@ function scheduleNotifications() {
     // Only schedule if within next 24 hours
     if (ms > 0 && ms <= 86_400_000) {
       notificationTimers[prayer] = setTimeout(() => {
-        new Notification(prayer, {
-          body: "Namazi Hund Waqt Wot",
+        const prayerLabel = getPrayerLabel(prayer);
+        new Notification(prayerLabel, {
+          body: `${prayerLabel} time has arrived.`,
           tag: prayer,
           renotify: true,
           icon: "icons/mosque.svg"

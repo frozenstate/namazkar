@@ -38,7 +38,12 @@
 
   <div class="region">
     <span id="offset-text" class="offset-text" title="Region offset">+0 min</span>
-    <select id="citySelect" aria-label="Region"></select>
+    <div class="city-picker" id="cityPicker">
+      <div class="city-search-wrap">
+        <input id="citySearch" class="city-search" type="text" aria-label="Search region" autocomplete="off" placeholder="Search regions" />
+        <div id="cityResults" class="city-results" role="listbox" aria-label="Region search results"></div>
+      </div>
+    </div>
   </div>
 
   <div id="next-prayer" class="next-card" aria-live="polite">
@@ -53,10 +58,14 @@
 
   <div class="settings">
     <p><small>
-      Times are based on the official timetable published by Dar-ul-Uloom Rahimiyyah, Bandipora.
+      Based on the Dar-ul-Uloom Rahimiyyah timetable.
     </small></p>
   </div>
   </div>
+
+  <footer class="page-footer" aria-label="App dedication">
+    Lovingly dedicated to my family, whose love, support, and guidance shaped who I am today.
+  </footer>
 
   <script src="app.js"></script>
   <script>
