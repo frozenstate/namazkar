@@ -8,12 +8,12 @@ const citySelect = document.getElementById("citySelect");
 const currentDateEl = document.getElementById("current-date");
 const currentTimeEl = document.getElementById("current-time");
 const notifyGlobal = document.getElementById("notifyGlobal");
-const offsetChip = document.getElementById("offset-chip");
 const nextNameEl = document.getElementById("next-name");
 const nextTimeEl = document.getElementById("next-time");
 const nextCountdownEl = document.getElementById("next-countdown");
 const themeToggle = document.getElementById("themeToggle");
 const offsetText = document.getElementById("offset-text");
+const toastContainer = document.getElementById("toast-container");
 
 function updateNotifyIconState() {
   if (!notifyGlobal) return;
@@ -52,18 +52,33 @@ function saveEnabledPrayers() {
 
 async function loadData() {
   loadEnabledPrayers();
-  timetable = await fetch("data/table.json").then(r => {
-  if (!r.ok) throw new Error("Failed to load table.json");
-  return r.json();
-});
+  try {
+    timetable = await fetch("data/table.json").then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}: Failed to load table.json`);
+      return r.json();
+    });
 
-cities = await fetch("data/offset.json").then(r => {
-  if (!r.ok) throw new Error("Failed to load offset.json");
-  return r.json();
-});
+    if (!timetable || !timetable.days) {
+      throw new Error("Invalid table.json structure: missing days");
+    }
+
+    cities = await fetch("data/offset.json").then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}: Failed to load offset.json`);
+      return r.json();
+    });
+
+    if (!cities || !cities.cities) {
+      throw new Error("Invalid offset.json structure: missing cities");
+    }
+  } catch (err) {
+    console.error("Error loading data:", err);
+    showToast(`Error: ${err.message}. Retrying...`, 4000);
+    setTimeout(loadData, 3000);
+    return;
+  }
 
   selectedCity =
-    localStorage.getItem("city") || cities.base_city;
+    localStorage.getItem("city") || (cities?.base_city || Object.keys(cities.cities)[0]);
 
   initTheme();
   populateCities();
@@ -105,12 +120,35 @@ function addMinutes(time, minutes) {
 function formatTime12(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
   const hour12 = (h % 12) || 12;
-  return `${hour12}:${String(m).padStart(2, '0')}`;
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function showToast(message, duration = 3000) {
+  if (!toastContainer) return;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("fade-out");
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
 }
 
 function renderTimes() {
+  if (!timetable || !timetable.days || !cities || !cities.cities) {
+    timesDiv.innerHTML = "<p class='error'>Unable to load prayer times. Please refresh the page.</p>";
+    return;
+  }
+
   const key = todayKey();
   const baseTimes = timetable.days[key];
+  if (!baseTimes) {
+    timesDiv.innerHTML = "<p class='error'>No prayer times available for today.</p>";
+    return;
+  }
+
   const offset = cities.cities[selectedCity].offset;
 
   if (offsetText) {
@@ -247,20 +285,17 @@ function updateNextPrayer() {
 
 async function enableNotifications() {
   if (!("Notification" in window)) {
-    alert("Notifications are not supported on this browser.");
+    showToast("Notifications not supported on this browser", 4000);
     return;
   }
 
   if (Notification.permission === "denied") {
-    alert(
-      "Notifications are blocked for this site.\n\n" +
-      "Please enable them manually in browser settings."
-    );
+    showToast("Notifications blocked. Enable in browser settings", 4000);
     return;
   }
 
   if (Notification.permission === "granted") {
-    alert("Notifications are already enabled.");
+    showToast("Notifications already enabled");
     scheduleNotifications();
     updateNotifyIconState();
     enableAllPrayers();
@@ -269,34 +304,72 @@ async function enableNotifications() {
 
   const perm = await Notification.requestPermission();
   if (perm === "granted") {
-    alert("Notifications enabled.");
+    showToast("Notifications enabled");
     scheduleNotifications();
     updateNotifyIconState();
     enableAllPrayers();
   } else {
-    alert("Notifications not enabled.");
+    showToast("Notifications not enabled");
     updateNotifyIconState();
   }
 }
 
 
+let notificationTimers = {};
+
+function clearNotificationTimers() {
+  Object.values(notificationTimers).forEach(timerId => clearTimeout(timerId));
+  notificationTimers = {};
+}
+
 function scheduleNotifications() {
   if (Notification.permission !== "granted") return;
 
+  // Try to notify service worker for background notifications
   navigator.serviceWorker.ready.then(reg => {
-    reg.active.postMessage({
-      type: "SCHEDULE",
-      city: selectedCity,
-      enabledPrayers
-    });
-  });
+    const worker = reg.active || reg.waiting || reg.installing;
+    if (worker) {
+      worker.postMessage({
+        type: "SCHEDULE",
+        city: selectedCity,
+        enabledPrayers
+      });
+    }
+  }).catch(() => {});
+
+  // Schedule in-page timers for foreground notifications (24h window)
+  clearNotificationTimers();
+  const key = todayKey();
+  const baseTimes = timetable.days[key];
+  if (!baseTimes) return;
+  const offset = cities.cities[selectedCity].offset;
+  const now = new Date();
+
+  for (const prayer in baseTimes) {
+    if (!enabledPrayers[prayer]) continue;
+    const fireAt = parseTimeToDate(baseTimes[prayer], offset);
+    const ms = fireAt - now;
+    // Only schedule if within next 24 hours
+    if (ms > 0 && ms <= 86_400_000) {
+      notificationTimers[prayer] = setTimeout(() => {
+        new Notification(prayer, {
+          body: "Namazi Hund Waqt Wot",
+          tag: prayer,
+          renotify: true,
+          icon: "icons/mosque.svg"
+        });
+      }, ms);
+    }
+  }
 }
 
 if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
 updateNotifyIconState();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("persist.js");
+  navigator.serviceWorker.register("persist.js").catch(err => {
+    console.warn("Service worker registration failed:", err);
+  });
 }
 
 setInterval(() => {
@@ -306,6 +379,9 @@ setInterval(() => {
   updateNotifyIconState();
   updateRowBellStates();
 }, 60_000);
+
+// Clear timers on page unload
+window.addEventListener("beforeunload", clearNotificationTimers);
 
 // live countdown every second
 setInterval(() => {
@@ -317,12 +393,12 @@ setInterval(() => {
 loadData();
 
 timesDiv.addEventListener("click", async (e) => {
-  const btn = e.target.closest && e.target.closest(".prayer-notify");
+  const btn = e.target.closest(".prayer-notify");
   if (!btn) return;
   const prayer = btn.getAttribute("data-prayer");
 
   if (!("Notification" in window)) {
-    alert("Notifications are not supported on this browser.");
+    showToast("Notifications not supported on this browser", 4000);
     return;
   }
 

@@ -1,4 +1,5 @@
-const CACHE = "namazkar-pwa-v1";
+const CACHE = "namazkar-pwa-v2";
+const OLD_CACHES = ["namazkar-pwa-v1"];
 
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -16,7 +17,22 @@ self.addEventListener("install", e => {
         "/data/table.json",
         "/data/offset.json"
       ])
-    )
+    ).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    Promise.all([
+      caches.keys().then(cacheNames =>
+        Promise.all(
+          cacheNames.map(name =>
+            OLD_CACHES.includes(name) ? caches.delete(name) : Promise.resolve()
+          )
+        )
+      ),
+      self.clients.claim()
+    ])
   );
 });
 
