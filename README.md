@@ -11,6 +11,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - Simple, fast, and mobile-first
 - Works offline via a service worker
 - Local city offsets supported
+- Uses Kaeshir names for prayer times
 - Per-prayer notification toggles
 - Clean dark/light themes
 
