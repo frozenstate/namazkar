@@ -1,6 +1,6 @@
 # Namaz Kar?
 
-<img src="icons/mosque.svg" alt="Namaz Kar logo" width="96" height="96">
+<img src="icons/favicon-round.svg" alt="Namaz Kar logo" width="96" height="96">
 
 Prayer times for the Kashmir Valley based on [the official Meeqat published by Dar-ul-Uloom Rahimiyyah, Bandipora](http://raheemiyyah.com/meeqat-us-salat/). This repo contains a small, offline-capable web app that shows today's prayer times, highlights the next prayer, and optionally sends browser notifications.
 
@@ -30,7 +30,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - [manifest.json](manifest.json): PWA metadata.
 - [data/table.json](data/table.json): Timetable data, keyed by date (`DD-MM`). Times stored in 24-hour format.
 - [data/offset.json](data/offset.json): City list and minute offsets.
-- [icons/](icons/): SVG icons (bell, bell-slash, dark-mode, mosque).
+- [icons/](icons/): SVG icons (bell, bell-slash, dark-mode, mosque, round favicon, Apple touch icon).
 
 **Data Format**
 - `table.json`
@@ -42,7 +42,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 
 **Display vs Storage**
 - Timetable times are stored as 24-hour `HH:MM` in JSON.
-- The UI displays times in 12-hour format (without AM/PM) for readability.
+- The UI displays times in 12-hour format with AM/PM for readability.
 
 **Notifications**
 - Grant permissions via the global bell in the top bar.
@@ -84,6 +84,7 @@ Then visit http://localhost:8080.
 
 **Troubleshooting**
 - Icons look pale in dark mode: confirmed inversion via `.theme-dark .icon-img` and `.theme-dark .logo`.
+- README logo not visible in dark mode: the image now uses `icons/favicon-round.svg`, which has a white background for contrast.
 - Notification bells not clickable: ensure permissions are granted; otherwise the icons appear disabled.
 - Timetable not updating: verify `data/table.json` has a key for today in `DD-MM` format.
 - Changes not visible: perform a hard reload or clear the service worker cache.
