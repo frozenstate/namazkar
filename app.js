@@ -572,23 +572,21 @@ async function ensurePushSubscription() {
       return null;
     }
 
-    // Try to get existing subscription, but handle Firefox DOMException
+    // Firefox has a bug where getSubscription() throws DOMException
+    // Try to get existing subscription, but if it fails, we'll recreate it
     let existing = null;
     try {
       existing = await reg.pushManager.getSubscription();
       if (existing) {
         console.log('Existing push subscription found:', existing.endpoint);
-        return existing;
+        // Verify subscription is still valid by checking endpoint
+        if (existing.endpoint) {
+          return existing;
+        }
       }
     } catch (err) {
-      console.warn('Error retrieving existing subscription (Firefox bug), will unsubscribe and recreate:', err);
-      // Firefox sometimes fails to retrieve subscription, try to unsubscribe first
-      try {
-        const allSubs = await reg.pushManager.getSubscription();
-        if (allSubs) await allSubs.unsubscribe();
-      } catch (e) {
-        // ignore
-      }
+      console.warn('Error retrieving subscription (Firefox DOMException):', err.message);
+      // Continue to create a new subscription
     }
 
     const publicKey = await getVapidPublicKey();
@@ -597,7 +595,19 @@ async function ensurePushSubscription() {
       return null;
     }
 
-    console.log('Subscribing to push notifications...');
+    console.log('Creating new push subscription...');
+    
+    // Try to unsubscribe all existing subscriptions first (Firefox workaround)
+    try {
+      const subs = await reg.pushManager.getSubscriptions();
+      for (const sub of subs || []) {
+        console.log('Unsubscribing from:', sub.endpoint);
+        await sub.unsubscribe();
+      }
+    } catch (err) {
+      console.warn('Could not unsubscribe from old subscriptions:', err);
+    }
+
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
