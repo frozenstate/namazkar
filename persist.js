@@ -1,23 +1,32 @@
-const CACHE = "namazkar-pwa-v2";
-const OLD_CACHES = ["namazkar-pwa-v1"];
+const CACHE = "namazkar-pwa-v3";
+const CORE_ASSETS = [
+  "/",
+  "/index.html",
+  "/styles.css",
+  "/app.js",
+  "/manifest.json",
+  "/data/table.json",
+  "/data/offset.json",
+  "/icons/dark-mode.svg",
+  "/icons/mosque.svg",
+  "/icons/bell.svg",
+  "/icons/bell-slash.svg",
+  "/icons/favicon-round.svg",
+  "/icons/apple-touch-icon.svg"
+];
+const CORE_ASSET_SET = new Set(CORE_ASSETS);
+
+function normalizePathFromUrl(urlString) {
+  const url = new URL(urlString, self.location.origin);
+  return url.pathname;
+}
 
 self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open(CACHE).then(c =>
-      c.addAll([
-        "/",
-        "/index.html",
-        "/styles.css",
-        "/app.js",
-        "/icons/dark-mode.svg",
-        "/icons/mosque.svg",
-        "/icons/bell.svg",
-        "/icons/bell-slash.svg",
-        "/manifest.json",
-        "/data/table.json",
-        "/data/offset.json"
-      ])
-    ).then(() => self.skipWaiting())
+    caches
+      .open(CACHE)
+      .then(c => c.addAll(CORE_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -25,21 +34,37 @@ self.addEventListener("activate", e => {
   e.waitUntil(
     Promise.all([
       caches.keys().then(cacheNames =>
-        Promise.all(
-          cacheNames.map(name =>
-            OLD_CACHES.includes(name) ? caches.delete(name) : Promise.resolve()
-          )
-        )
+        Promise.all(cacheNames.map(name => (name !== CACHE ? caches.delete(name) : Promise.resolve())))
       ),
+      caches.open(CACHE).then(async cache => {
+        const requests = await cache.keys();
+        await Promise.all(
+          requests.map(request => {
+            const path = normalizePathFromUrl(request.url);
+            if (!CORE_ASSET_SET.has(path)) {
+              return cache.delete(request);
+            }
+            return Promise.resolve();
+          })
+        );
+      }),
       self.clients.claim()
     ])
   );
 });
 
 self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  if (e.request.method !== "GET") return;
+
+  const requestUrl = new URL(e.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  const path = requestUrl.pathname;
+  if (!CORE_ASSET_SET.has(path)) {
+    return;
+  }
+
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
 
 self.addEventListener("message", async e => {
