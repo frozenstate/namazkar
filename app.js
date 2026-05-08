@@ -737,7 +737,8 @@ async function updateServerSubscription() {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!r.ok) {// fallback to save
       const s = await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!s.ok)}
+      if (!s.ok) {}
+    }
   } catch (err) {}
 }
 
