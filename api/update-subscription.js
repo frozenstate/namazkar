@@ -1,5 +1,4 @@
 const { firestore } = require('./_firebase');
-const { requireAdminAuth } = require('./_adminAuth');
 
 function idFromEndpoint(endpoint) {
   if (!endpoint) return null;
@@ -8,7 +7,7 @@ function idFromEndpoint(endpoint) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
-  if (!requireAdminAuth(req, res)) return;
+  // This endpoint is callable by clients to update their subscription metadata (city, enabledPrayers)
   if (!firestore) return res.status(500).end('Firebase not configured');
 
   try {
@@ -20,6 +19,7 @@ module.exports = async (req, res) => {
     });
 
     const { subscription, city, enabledPrayers } = body;
+    console.log('update-subscription received:', subscription && subscription.endpoint, 'enabledPrayers:', enabledPrayers);
     if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
     const docId = idFromEndpoint(subscription.endpoint);
     const docRef = firestore.collection('subscriptions').doc(docId);

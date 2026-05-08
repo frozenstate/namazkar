@@ -746,19 +746,18 @@ async function updateServerSubscription() {
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
   const payload = { subscription: sub, city: selectedCity, enabledPrayers };
+  console.log('updateServerSubscription payload:', { endpoint: sub.endpoint, enabledPrayers });
   // Try update first, then save if not exists
   try {
-    await fetch('/api/update-subscription', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    });
-  } catch (err) {
-    try {
-      await fetch('/api/save-subscription', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-    } catch (e) {
-      console.warn('Could not send subscription to server', e);
+    const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!r.ok) {
+      console.warn('update-subscription failed, status:', r.status, await r.text());
+      // fallback to save
+      const s = await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!s.ok) console.warn('save-subscription fallback also failed', s.status, await s.text());
     }
+  } catch (err) {
+    console.warn('Could not send subscription to server', err);
   }
 }
 

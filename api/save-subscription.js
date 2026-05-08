@@ -17,6 +17,8 @@ module.exports = async (req, res) => {
       req.on('error', reject);
     });
 
+    console.log('save-subscription body received:', typeof body === 'object' ? JSON.stringify({ endpoint: body && body.subscription && body.subscription.endpoint, enabledPrayers: body.enabledPrayers }) : String(body).slice(0,200));
+
     const { subscription, city, enabledPrayers } = body;
     if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
     const docId = idFromEndpoint(subscription.endpoint);
