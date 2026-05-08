@@ -18,9 +18,7 @@ module.exports = async (req, res) => {
       req.on('error', reject);
     });
 
-    const { subscription, city, enabledPrayers } = body;
-    console.log('update-subscription received:', subscription && subscription.endpoint, 'enabledPrayers:', enabledPrayers);
-    if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
+    const { subscription, city, enabledPrayers } = body;    if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
     const docId = idFromEndpoint(subscription.endpoint);
     const docRef = firestore.collection('subscriptions').doc(docId);
     const now = new Date().toISOString();

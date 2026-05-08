@@ -42,18 +42,12 @@ function getPrayerNotificationText(prayerKey) {
   };
 }
 
-self.addEventListener("install", e => {
-  console.log("Service worker installing...");
-  e.waitUntil(
+self.addEventListener("install", e => {e.waitUntil(
     caches
       .open(CACHE)
-      .then(c => {
-        console.log("Cache opened, adding assets...");
-        return c.addAll(CORE_ASSETS);
+      .then(c => {return c.addAll(CORE_ASSETS);
       })
-      .then(() => {
-        console.log("Service worker install complete, skipping wait...");
-        return self.skipWaiting();
+      .then(() => {return self.skipWaiting();
       })
       .catch(err => {
         console.error("Service worker install failed:", err);
@@ -62,9 +56,7 @@ self.addEventListener("install", e => {
   );
 });
 
-self.addEventListener("activate", e => {
-  console.log("Service worker activating...");
-  e.waitUntil(
+self.addEventListener("activate", e => {e.waitUntil(
     Promise.all([
       caches.keys().then(cacheNames =>
         Promise.all(cacheNames.map(name => (name !== CACHE ? caches.delete(name) : Promise.resolve())))
@@ -138,16 +130,11 @@ self.addEventListener("message", async e => {
 });
 
 // Handle incoming push messages from a Push Service (Web Push)
-self.addEventListener('push', event => {
-  console.log('Push event received:', event);
-  let payload = { title: 'Namaz Kar', body: 'waqt wot' };
+self.addEventListener('push', event => {let payload = { title: 'Namaz Kar', body: 'waqt wot' };
   try {
     if (event.data) {
-      payload = event.data.json();
-      console.log('Parsed push payload:', payload);
-    }
+      payload = event.data.json();}
   } catch (err) {
-    console.error('Failed to parse push payload:', err);
     // fall back to text
     try { payload = { title: 'Namaz Kar', body: event.data.text() }; } catch (e) {}
   }

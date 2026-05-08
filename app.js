@@ -56,9 +56,7 @@ function updateNotifyIconState() {
   if (isEnabled && "serviceWorker" in navigator) {
     navigator.serviceWorker.ready.then(reg => {
       console.log("Service worker status: active and ready");
-    }).catch(err => {
-      console.warn("Service worker not ready:", err);
-    });
+    }).catch(err => {});
   }
 }
 
@@ -529,9 +527,7 @@ async function enableNotifications() {
     // propagate preferences to server
     try {
       await updateServerSubscription();
-    } catch (e) {
-      console.warn('Failed to update server subscription after global enable', e);
-    }
+    } catch (e) {}
     return;
   }
 
@@ -545,14 +541,10 @@ async function enableNotifications() {
     // Try to also subscribe to Push (Web Push) for background notifications
     try {
       await ensurePushSubscription();
-    } catch (err) {
-      console.warn('Push subscription failed:', err);
-    }
+    } catch (err) {}
     try {
       await updateServerSubscription()
-    } catch(e) {
-      console.warn('Failed to update server subscription after granting permission', e);
-    }
+    } catch(e) {}
   } else {
     showToast("Notifications not enabled");
     updateNotifyIconState();
@@ -577,45 +569,29 @@ async function getVapidPublicKey() {
     if (!res.ok) throw new Error('Failed to fetch VAPID key');
     const data = await res.json();
     return data.publicKey;
-  } catch (err) {
-    console.warn('Could not get VAPID key:', err);
-    return null;
+  } catch (err) {return null;
   }
 }
 
 async function ensurePushSubscription() {
-  if (!('serviceWorker' in navigator)) {
-    console.warn('Service Workers not supported');
-    return null;
+  if (!('serviceWorker' in navigator)) {return null;
   }
 
   try {
     const reg = await navigator.serviceWorker.ready;
-    if (!reg) {
-      console.warn('Service worker not ready');
-      return null;
+    if (!reg) {return null;
     }
 
     const publicKey = await getVapidPublicKey();
-    if (!publicKey) {
-      console.warn('No VAPID public key available from server');
-      return null;
-    }
-
-    console.log('Creating push subscription...');
-    
-    // On Firefox, getSubscription() often fails. The safest approach is:
+    if (!publicKey) {return null;
+    }// On Firefox, getSubscription() often fails. The safest approach is:
     // 1. Try to subscribe (this will reuse existing or create new)
     // 2. If it fails, ignore and continue (user still has local notifications)
     try {
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey)
-      });
-
-      console.log('Push subscription created:', sub.endpoint);
-
-      // Send subscription to server so it can be stored and used to send pushes
+      });// Send subscription to server so it can be stored and used to send pushes
       try {
         const response = await fetch('/api/save-subscription', {
           method: 'POST',
@@ -624,23 +600,15 @@ async function ensurePushSubscription() {
         });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        }
-        console.log('Subscription saved to server');
-      } catch (err) {
-        console.error('Failed to send subscription to server:', err);
-        showToast('Warning: Could not save subscription to server', 5000);
+        }} catch (err) {showToast('Warning: Could not save subscription to server', 5000);
       }
 
       return sub;
     } catch (err) {
-      // If push subscription fails, still allow local notifications to work
-      console.warn('Push subscription unavailable (this is OK, local notifications will still work):', err.message);
-      showToast('Local notifications enabled (push notifications unavailable on this browser)', 4000);
+      // If push subscription fails, still allow local notifications to workshowToast('Local notifications enabled (push notifications unavailable on this browser)', 4000);
       return null;
     }
-  } catch (err) {
-    console.error('Unexpected error in ensurePushSubscription:', err);
-    return null;
+  } catch (err) {return null;
   }
 }
 
@@ -708,12 +676,7 @@ if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
 updateNotifyIconState();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("persist.js", { scope: "/" }).then(reg => {
-    console.log("Service worker registered successfully:", reg);
-  }).catch(err => {
-    console.error("Service worker registration failed:", err);
-    showToast("Failed to register service worker: " + err.message, 5000);
-  });
+  navigator.serviceWorker.register("persist.js", { scope: "/" }).then(reg => {}).catch(err => {});
 }
 
 setInterval(() => {
@@ -769,20 +732,13 @@ async function updateServerSubscription() {
   if (!reg) return;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
-  const payload = { subscription: sub, city: selectedCity, enabledPrayers };
-  console.log('updateServerSubscription payload:', { endpoint: sub.endpoint, enabledPrayers });
-  // Try update first, then save if not exists
+  const payload = { subscription: sub, city: selectedCity, enabledPrayers };// Try update first, then save if not exists
   try {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!r.ok) {
-      console.warn('update-subscription failed, status:', r.status, await r.text());
-      // fallback to save
+    if (!r.ok) {// fallback to save
       const s = await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!s.ok) console.warn('save-subscription fallback also failed', s.status, await s.text());
-    }
-  } catch (err) {
-    console.warn('Could not send subscription to server', err);
-  }
+      if (!s.ok)}
+  } catch (err) {}
 }
 
 function initTheme() {
@@ -842,9 +798,7 @@ if (installBtn) {
         } else {
           showToast('Install dismissed', 2000);
         }
-      } catch (err) {
-        console.warn('Install prompt failed', err);
-        installBtn.classList.add('hidden');
+      } catch (err) {installBtn.classList.add('hidden');
       }
     } else {
       // Fallback for browsers without beforeinstallprompt (Firefox, Brave)
