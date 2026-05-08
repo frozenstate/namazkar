@@ -137,3 +137,34 @@ node server/push-server.js ./subscription.json
 
 **License**
 - See [LICENSE](LICENSE).
+
+**Re-subscribing Existing Users for Push Notifications**
+
+If users enabled notifications before push support was fully deployed, they may not yet have push subscriptions stored in Firestore. To enable push for these existing users:
+
+1. **For users on Chrome/Chromium browsers:**
+   - The app automatically creates a push subscription when they enable notifications.
+   - They can trigger a fresh subscription by clicking the global bell twice:
+     - Once to disable all notifications (preferences clear locally)
+     - Again to re-enable → this will create a new push subscription and sync it to the server
+   - Alternatively, clear browser storage → go to the app → enable notifications again.
+
+2. **For users on Firefox Mobile:**
+   - Firefox Mobile has inconsistent Web Push support depending on the device and version.
+   - Users should keep the app installed on their home screen.
+   - Local scheduled notifications (via service worker) will still work when the app is installed.
+   - To test push: open `about:debugging` on the desktop connected to the device, inspect the service worker, and check console logs.
+
+3. **For all users (forcing re-subscription via admin):**
+   - Log into the admin panel at `/admin.html`.
+   - Click "Refresh subscriptions" to see all currently stored subscriptions.
+   - New subscriptions will appear only after users enable notifications on their devices.
+   - There is no forced re-subscription endpoint; users must enable notifications on their device to create a new subscription.
+
+4. **If push notifications still don't work:**
+   - Ensure `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set in Vercel environment variables.
+   - Ensure Firebase Firestore is enabled and `FIREBASE_SERVICE_ACCOUNT` is configured.
+   - Ensure the cron job calling `/api/trigger-scheduled` is running (check Vercel Logs for function execution).
+   - On Chrome: DevTools → Application → Service Workers → check registration and console.
+   - On Firefox: use `about:debugging` to inspect service worker logs.
+
