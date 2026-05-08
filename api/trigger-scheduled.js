@@ -1,4 +1,5 @@
 const { firestore } = require('./_firebase');
+const { requireAdminAuth, isAdminAuthenticated } = require('./_adminAuth');
 const webpush = require('web-push');
 const fs = require('fs');
 
@@ -37,12 +38,34 @@ function parseTimeToDate(timeStr, offsetMin, baseDate = new Date()) {
   return d;
 }
 
+const PRAYER_LABELS = {
+  Fajr: 'Subah',
+  Sunrise: 'Zawaal',
+  Dhuhr: 'Pishan',
+  Asr: 'Digar',
+  Maghrib: 'Shaam',
+  Isha: 'Khoftan'
+};
+
+function getPrayerLabel(prayerKey) {
+  return PRAYER_LABELS[prayerKey] || prayerKey;
+}
+
+function getPrayerNotificationText(prayerKey) {
+  const prayerLabel = getPrayerLabel(prayerKey);
+  return {
+    title: prayerLabel,
+    body: `${prayerLabel} waqt wot`
+  };
+}
+
 module.exports = async (req, res) => {
   // This endpoint is intended to be called by a scheduler (cron) every minute.
-  const adminToken = process.env.ADMIN_TOKEN || '';
-  const provided = req.headers['x-admin-token'];
-  if (!adminToken || provided !== adminToken) {
-    return res.status(401).end('Unauthorized');
+  const cronSecret = process.env.ADMIN_SCHEDULE_SECRET || '';
+  const cronProvided = req.headers['x-admin-schedule-secret'];
+  const cronAuthorized = cronSecret && cronProvided === cronSecret;
+  if (!isAdminAuthenticated(req) && !cronAuthorized) {
+    return requireAdminAuth(req, res);
   }
 
   if (!firestore) return res.status(500).end('Firebase not configured');
@@ -79,7 +102,8 @@ module.exports = async (req, res) => {
         if (at > now && (at - now) <= windowMs) {
           const enabled = (data.enabledPrayers && data.enabledPrayers[prayer]) || false;
           if (!enabled) continue;
-          const payload = { title: prayer, body: `${prayer} time has arrived.` , tag: prayer };
+          const notificationText = getPrayerNotificationText(prayer);
+          const payload = { title: notificationText.title, body: notificationText.body, tag: prayer };
           sendPromises.push(webpush.sendNotification(data.subscription, JSON.stringify(payload)).catch(err => {
             console.warn('push failed for', doc.id, err && err.statusCode);
           }));

@@ -1,4 +1,5 @@
 const { firestore } = require('./_firebase');
+const { requireAdminAuth } = require('./_adminAuth');
 
 function idFromEndpoint(endpoint) {
   if (!endpoint) return null;
@@ -7,6 +8,7 @@ function idFromEndpoint(endpoint) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
+  if (!requireAdminAuth(req, res)) return;
   if (!firestore) return res.status(500).end('Firebase not configured');
 
   try {

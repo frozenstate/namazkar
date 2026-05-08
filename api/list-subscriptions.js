@@ -1,11 +1,8 @@
 const { firestore } = require('./_firebase');
+const { requireAdminAuth } = require('./_adminAuth');
 
 module.exports = async (req, res) => {
-  const adminToken = process.env.ADMIN_TOKEN || '';
-  const provided = req.headers['x-admin-token'];
-  if (!adminToken || provided !== adminToken) {
-    return res.status(401).end('Unauthorized');
-  }
+  if (!requireAdminAuth(req, res)) return;
   if (!firestore) return res.status(500).end('Firebase not configured');
 
   try {

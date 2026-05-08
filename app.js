@@ -113,6 +113,14 @@ function getPrayerLabel(prayerKey) {
   return PRAYER_LABELS[prayerKey] || prayerKey;
 }
 
+function getPrayerNotificationText(prayerKey) {
+  const prayerLabel = getPrayerLabel(prayerKey);
+  return {
+    title: prayerLabel,
+    body: `${prayerLabel} waqt wot`
+  };
+}
+
 function normalizeText(value) {
   return value
     .toLowerCase()
@@ -621,9 +629,9 @@ function scheduleNotifications() {
     // Only schedule if within next 24 hours
     if (ms > 0 && ms <= 86_400_000) {
       notificationTimers[prayer] = setTimeout(() => {
-        const prayerLabel = getPrayerLabel(prayer);
-        new Notification(prayerLabel, {
-          body: `${prayerLabel} time has arrived.`,
+        const notificationText = getPrayerNotificationText(prayer);
+        new Notification(notificationText.title, {
+          body: notificationText.body,
           tag: prayer,
           renotify: true,
           icon: "icons/mosque.svg"

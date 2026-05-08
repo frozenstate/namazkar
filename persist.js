@@ -21,6 +21,27 @@ function normalizePathFromUrl(urlString) {
   return url.pathname;
 }
 
+const PRAYER_LABELS = {
+  Fajr: "Subah",
+  Sunrise: "Zawaal",
+  Dhuhr: "Pishan",
+  Asr: "Digar",
+  Maghrib: "Shaam",
+  Isha: "Khoftan"
+};
+
+function getPrayerLabel(prayerKey) {
+  return PRAYER_LABELS[prayerKey] || prayerKey;
+}
+
+function getPrayerNotificationText(prayerKey) {
+  const prayerLabel = getPrayerLabel(prayerKey);
+  return {
+    title: prayerLabel,
+    body: `${prayerLabel} waqt wot`
+  };
+}
+
 self.addEventListener("install", e => {
   e.waitUntil(
     caches
@@ -94,8 +115,9 @@ self.addEventListener("message", async e => {
 
     // Only show notification if time is very near (≤ 3 seconds)
     if (fireAt > now && fireAt - now < 3_000) {
-      self.registration.showNotification(prayer, {
-        body: "Namazi Hund Waqt Wot",
+      const notificationText = getPrayerNotificationText(prayer);
+      self.registration.showNotification(notificationText.title, {
+        body: notificationText.body,
         tag: prayer,
         renotify: true
       });
@@ -105,7 +127,7 @@ self.addEventListener("message", async e => {
 
 // Handle incoming push messages from a Push Service (Web Push)
 self.addEventListener('push', event => {
-  let payload = { title: 'Namaz Kar', body: 'Prayer time' };
+  let payload = { title: 'Namaz Kar', body: 'waqt wot' };
   try {
     if (event.data) payload = event.data.json();
   } catch (err) {

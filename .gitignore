@@ -1,10 +1,5 @@
 .vscode/
 
-# Local-only admin/testing helpers
-admin.html
-admin.js
-server/push-server.js
-
 # Local secrets and throwaway test files
 vapid-keys.json
 subscription.json

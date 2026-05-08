@@ -1,5 +1,6 @@
 const webpush = require('web-push');
 const { firestore } = require('./_firebase');
+const { requireAdminAuth } = require('./_adminAuth');
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -12,11 +13,12 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 }
 
 async function sendToSubscription(subscription, payload) {
-  return webpush.sendNotification(subscription, JSON.stringify(payload || { title: 'Namaz Kar', body: 'Prayer time' }));
+  return webpush.sendNotification(subscription, JSON.stringify(payload || { title: 'Namaz Kar', body: 'waqt wot' }));
 }
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
+  if (!requireAdminAuth(req, res)) return;
 
   try {
     const body = await new Promise((resolve, reject) => {
@@ -34,13 +36,6 @@ module.exports = async (req, res) => {
       res.statusCode = 200;
       res.end(JSON.stringify({ ok: true }));
       return;
-    }
-
-    // If no subscription provided, require admin token and send to all stored subscriptions
-    const adminToken = process.env.ADMIN_TOKEN || '';
-    const provided = req.headers['x-admin-token'];
-    if (!adminToken || provided !== adminToken) {
-      return res.status(401).end('Unauthorized');
     }
 
     if (!firestore) return res.status(500).end('Firebase not configured');

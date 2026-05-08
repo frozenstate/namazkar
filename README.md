@@ -62,10 +62,21 @@ VAPID_PRIVATE_KEY=...
 ```
 
 - For Firestore-backed subscription storage, add your Firebase service account JSON as `FIREBASE_SERVICE_ACCOUNT`.
-- Add `ADMIN_TOKEN` for the protected push management and scheduler endpoints.
+- Add `ADMIN_PANEL_PASSWORD_HASH` and `ADMIN_PANEL_SESSION_SECRET` for the admin login.
+- Add `ADMIN_SCHEDULE_SECRET` for cron-based scheduled pushes.
 - Firestore stores subscriptions in a `subscriptions` collection.
-- To deliver scheduled pushes automatically, call `POST /api/trigger-scheduled` every minute from a cron job or scheduler.
+- To deliver scheduled pushes automatically, call `POST /api/trigger-scheduled` every minute from a cron job or scheduler with header `x-admin-schedule-secret: <ADMIN_SCHEDULE_SECRET>`.
 - For a one-off manual push test, save a subscription JSON file from the browser and run `node server/push-server.js ./subscription.json`.
+
+**Admin Panel**
+- The admin page is online and protected by a secure session cookie.
+- Log in with the password set in `ADMIN_PANEL_PASSWORD_HASH`.
+- The session cookie is HttpOnly and SameSite=Strict.
+- To generate a password hash locally, run:
+
+```bash
+node -e "console.log(require('bcryptjs').hashSync('your-strong-password', 12))"
+```
 
 **Offline / PWA**
 - Assets and data are cached by [persist.js](persist.js) with a cache-first strategy.

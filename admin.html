@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NamazKar Admin</title>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <style>
+    body{font-family:system-ui,Arial;margin:20px;max-width:960px}
+    input,button{padding:8px 10px;margin:4px 0}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .card{border:1px solid #d9d9d9;border-radius:14px;padding:16px;margin:12px 0;background:#fafafa}
+    .sub{border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0;word-break:break-word;background:#fff}
+    .muted{opacity:.72;font-size:.92rem}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere}
+    .hidden{display:none}
+    .error{color:#b91c1c}
+  </style>
+</head>
+<body>
+  <h1>Namaz Kar — Admin</h1>
+  <p class="muted">Admin access is protected by a secure session cookie. Log in to view subscriptions and trigger pushes.</p>
+
+  <div id="loginPanel" class="card">
+    <form id="loginForm">
+      <label for="adminPassword"><strong>Password</strong></label><br />
+      <input id="adminPassword" type="password" placeholder="Enter admin password" size="40" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <div class="row">
+        <button id="btnLogin" type="submit">Log in</button>
+      </div>
+    </form>
+    <p id="loginStatus" class="muted">Not signed in.</p>
+  </div>
+
+  <div id="adminTools" class="hidden card">
+    <div class="row">
+      <button id="btnList" type="button">Refresh subscriptions</button>
+      <button id="btnTrigger" type="button">Trigger scheduled job</button>
+      <button id="btnLogout" type="button">Log out</button>
+    </div>
+    <p class="muted">Displayed subscription data is masked. Only the endpoint fingerprint and metadata are shown.</p>
+    <div id="out"></div>
+  </div>
+  <script src="admin.js"></script>
+</body>
+</html>
