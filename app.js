@@ -572,11 +572,23 @@ async function ensurePushSubscription() {
       return null;
     }
 
-    // check existing subscription
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) {
-      console.log('Existing push subscription found:', existing.endpoint);
-      return existing;
+    // Try to get existing subscription, but handle Firefox DOMException
+    let existing = null;
+    try {
+      existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        console.log('Existing push subscription found:', existing.endpoint);
+        return existing;
+      }
+    } catch (err) {
+      console.warn('Error retrieving existing subscription (Firefox bug), will unsubscribe and recreate:', err);
+      // Firefox sometimes fails to retrieve subscription, try to unsubscribe first
+      try {
+        const allSubs = await reg.pushManager.getSubscription();
+        if (allSubs) await allSubs.unsubscribe();
+      } catch (e) {
+        // ignore
+      }
     }
 
     const publicKey = await getVapidPublicKey();
