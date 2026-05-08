@@ -1,8 +1,6 @@
 const { firestore } = require('./_firebase');
 const { requireAdminAuth, isAdminAuthenticated } = require('./_adminAuth');
 const webpush = require('web-push');
-const fs = require('fs');
-const path = require('path');
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -19,16 +17,16 @@ function idFromEndpoint(endpoint) {
   return Buffer.from(endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-function parseJSONFile(filePath) {
+async function fetchJSON(url) {
   try {
-    // Use absolute path to handle both local dev and Vercel
-    const absolutePath = path.isAbsolute(filePath) 
-      ? filePath 
-      : path.join(__dirname, '..', filePath);
-    const raw = fs.readFileSync(absolutePath, 'utf8');
-    return JSON.parse(raw);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    return await response.json();
   } catch (err) {
-    console.error(`Failed to parse ${filePath}:`, err.message);
+    console.error(`Error fetching ${url}:`, err.message);
     return null;
   }
 }
@@ -77,8 +75,15 @@ module.exports = async (req, res) => {
   if (!firestore) return res.status(500).end('Firebase not configured');
 
   try {
-    const table = parseJSONFile('./data/table.json');
-    const offsets = parseJSONFile('./data/offset.json');
+    // Fetch data files from the deployed app
+    const origin = req.headers['x-forwarded-proto'] 
+      ? `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host'] || req.headers.host}` 
+      : `https://${req.headers.host}`;
+    
+    const [table, offsets] = await Promise.all([
+      fetchJSON(`${origin}/data/table.json`),
+      fetchJSON(`${origin}/data/offset.json`)
+    ]);
     
     if (!table || !table.days) {
       console.error('Table missing or invalid:', table);
