@@ -800,6 +800,12 @@ if (themeToggle) {
 }
 
 // PWA install prompt handling
+// Show install button on mobile devices (or when beforeinstallprompt fires)
+function detectMobileDevice() {
+  const userAgent = navigator.userAgent || '';
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
   // Prevent the mini-infobar from appearing on mobile; keep the event for later prompt
   e.preventDefault();
@@ -812,22 +818,39 @@ window.addEventListener('beforeinstallprompt', (e) => {
   } catch (err) { /* ignore */ }
 });
 
+// Show install button on mobile even if beforeinstallprompt doesn't fire (Firefox, Brave)
+if (installBtn && detectMobileDevice()) {
+  try {
+    if (!localStorage.getItem('pwaInstallPromptShown')) {
+      installBtn.classList.remove('hidden');
+    }
+  } catch (err) { /* ignore */ }
+}
+
 if (installBtn) {
   installBtn.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) return;
-    try {
-      deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      localStorage.setItem('pwaInstallPromptShown', '1');
-      installBtn.classList.add('hidden');
-      deferredInstallPrompt = null;
-      if (choice && choice.outcome === 'accepted') {
-        showToast('Thanks — app installed!', 3000);
-      } else {
-        showToast('Install dismissed', 2000);
+    if (deferredInstallPrompt) {
+      // Standard prompt for Chromium browsers
+      try {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        localStorage.setItem('pwaInstallPromptShown', '1');
+        installBtn.classList.add('hidden');
+        deferredInstallPrompt = null;
+        if (choice && choice.outcome === 'accepted') {
+          showToast('Thanks — app installed!', 3000);
+        } else {
+          showToast('Install dismissed', 2000);
+        }
+      } catch (err) {
+        console.warn('Install prompt failed', err);
+        installBtn.classList.add('hidden');
       }
-    } catch (err) {
-      console.warn('Install prompt failed', err);
+    } else {
+      // Fallback for browsers without beforeinstallprompt (Firefox, Brave)
+      // Provide instructions to user
+      showToast('Tap browser menu → "Add to home screen" or "Install"', 4000);
+      localStorage.setItem('pwaInstallPromptShown', '1');
       installBtn.classList.add('hidden');
     }
   });
