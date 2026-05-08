@@ -1,0 +1,9 @@
+{
+  "name": "namazkar-push-server",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.5.0",
+    "firebase-admin": "^11.10.0"
+  }
+}

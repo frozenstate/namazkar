@@ -1,1 +1,21 @@
 .vscode/
+
+# Local-only admin/testing helpers
+admin.html
+admin.js
+server/push-server.js
+
+# Local secrets and throwaway test files
+vapid-keys.json
+subscription.json
+firebase-service-account.json
+*.service-account.json
+*.secret.json
+*.local.json
+.env.local
+.env.*.local
+
+# Temporary working folders
+local/
+tmp/
+temp/

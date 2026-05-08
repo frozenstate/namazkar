@@ -77,3 +77,54 @@ self.addEventListener("message", async e => {
     }
   }
 });
+
+// Handle incoming push messages from a Push Service (Web Push)
+self.addEventListener('push', event => {
+  let payload = { title: 'Namaz Kar', body: 'Prayer time' };
+  try {
+    if (event.data) payload = event.data.json();
+  } catch (err) {
+    // fall back to text
+    try { payload = { title: 'Namaz Kar', body: event.data.text() }; } catch (e) {}
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      tag: payload.tag || 'namazkar-push',
+      renotify: true,
+      icon: 'icons/mosque.svg'
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if (client.url && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('/');
+    })
+  );
+});
+
+// Optional: handle subscription change (e.g., when push service rotates keys)
+self.addEventListener('pushsubscriptionchange', event => {
+  // Best-effort: try to resubscribe and notify the server via postMessage
+  event.waitUntil(
+    (async () => {
+      try {
+        const sw = self.registration;
+        // Can't access applicationServerKey here; let the client re-subscribe when it regains control
+        // Notify all clients so they can re-subscribe
+        const all = await clients.matchAll({ includeUncontrolled: true });
+        for (const c of all) {
+          c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' });
+        }
+      } catch (err) {
+        // ignore
+      }
+    })()
+  );
+});

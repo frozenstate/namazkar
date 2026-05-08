@@ -506,11 +506,82 @@ async function enableNotifications() {
     scheduleNotifications();
     updateNotifyIconState();
     enableAllPrayers();
+    // Try to also subscribe to Push (Web Push) for background notifications
+    try {
+      await ensurePushSubscription();
+    } catch (err) {
+      console.warn('Push subscription failed:', err);
+    }
   } else {
     showToast("Notifications not enabled");
     updateNotifyIconState();
   }
 }
+
+// --- Web Push helpers ---
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function getVapidPublicKey() {
+  try {
+    const res = await fetch('/api/vapidPublicKey');
+    if (!res.ok) throw new Error('Failed to fetch VAPID key');
+    const data = await res.json();
+    return data.publicKey;
+  } catch (err) {
+    console.warn('Could not get VAPID key:', err);
+    return null;
+  }
+}
+
+async function ensurePushSubscription() {
+  if (!('serviceWorker' in navigator)) return null;
+  const reg = await navigator.serviceWorker.ready;
+  if (!reg) return null;
+  // check existing subscription
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) return existing;
+
+  const publicKey = await getVapidPublicKey();
+  if (!publicKey) {
+    console.warn('No VAPID public key available from server');
+    return null;
+  }
+
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+
+  // Send subscription to server so it can be stored and used to send pushes
+  try {
+    await fetch('/api/save-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
+    });
+  } catch (err) {
+    console.warn('Failed to send subscription to server', err);
+  }
+
+  return sub;
+}
+
+// If service worker informs of subscription changes, attempt re-subscribe in page
+navigator.serviceWorker && navigator.serviceWorker.addEventListener && navigator.serviceWorker.addEventListener('message', e => {
+  if (e.data && e.data.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+    // attempt to re-subscribe when client receives this message
+    ensurePushSubscription().catch(() => {});
+  }
+});
 
 
 let notificationTimers = {};
@@ -557,6 +628,8 @@ function scheduleNotifications() {
           renotify: true,
           icon: "icons/mosque.svg"
         });
+        // Inform server of current preferences for this subscription
+        updateServerSubscription().catch(() => {});
       }, ms);
     }
   }
@@ -613,7 +686,33 @@ timesDiv.addEventListener("click", async (e) => {
   saveEnabledPrayers();
   updateRowBellStates();
   scheduleNotifications();
+  // send updated enabledPrayers to server for this subscription
+  updateServerSubscription().catch(() => {});
 });
+
+// Send or update subscription metadata to server
+async function updateServerSubscription() {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  if (!reg) return;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return;
+  const payload = { subscription: sub, city: selectedCity, enabledPrayers };
+  // Try update first, then save if not exists
+  try {
+    await fetch('/api/update-subscription', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    try {
+      await fetch('/api/save-subscription', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('Could not send subscription to server', e);
+    }
+  }
+}
 
 function initTheme() {
   const saved = localStorage.getItem('theme');
