@@ -2,6 +2,7 @@ const { firestore } = require('./_firebase');
 const { requireAdminAuth, isAdminAuthenticated } = require('./_adminAuth');
 const webpush = require('web-push');
 const fs = require('fs');
+const path = require('path');
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -18,11 +19,16 @@ function idFromEndpoint(endpoint) {
   return Buffer.from(endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-function parseJSONFile(path) {
+function parseJSONFile(filePath) {
   try {
-    const raw = fs.readFileSync(path, 'utf8');
+    // Use absolute path to handle both local dev and Vercel
+    const absolutePath = path.isAbsolute(filePath) 
+      ? filePath 
+      : path.join(__dirname, '..', filePath);
+    const raw = fs.readFileSync(absolutePath, 'utf8');
     return JSON.parse(raw);
   } catch (err) {
+    console.error(`Failed to parse ${filePath}:`, err.message);
     return null;
   }
 }
@@ -73,8 +79,14 @@ module.exports = async (req, res) => {
   try {
     const table = parseJSONFile('./data/table.json');
     const offsets = parseJSONFile('./data/offset.json');
-    if (!table || !table.days || !offsets || !offsets.cities) {
-      return res.status(500).end('Missing timetable or offsets');
+    
+    if (!table || !table.days) {
+      console.error('Table missing or invalid:', table);
+      return res.status(500).end('Missing or invalid timetable');
+    }
+    if (!offsets || !offsets.cities) {
+      console.error('Offsets missing or invalid:', offsets);
+      return res.status(500).end('Missing or invalid offsets');
     }
 
     const now = new Date();
