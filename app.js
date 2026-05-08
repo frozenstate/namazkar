@@ -28,6 +28,9 @@ const themeToggle = document.getElementById("themeToggle");
 const offsetText = document.getElementById("offset-text");
 const toastContainer = document.getElementById("toast-container");
 
+let deferredInstallPrompt = null;
+const installBtn = document.getElementById('installBtn');
+
 function updateNotifyIconState() {
   if (!notifyGlobal) return;
   const supported = "Notification" in window;
@@ -511,9 +514,24 @@ async function enableNotifications() {
 
   if (Notification.permission === "granted") {
     showToast("Notifications already enabled");
+    // Ensure UI and server are synced: enable all prayers locally and persist
+    enableAllPrayers();
+    saveEnabledPrayers();
+    updateRowBellStates();
     scheduleNotifications();
     updateNotifyIconState();
-    enableAllPrayers();
+
+    try {
+      // ensure push subscription exists (noop on browsers where unavailable)
+      await ensurePushSubscription();
+    } catch (e) { /* ignore */ }
+
+    // propagate preferences to server
+    try {
+      await updateServerSubscription();
+    } catch (e) {
+      console.warn('Failed to update server subscription after global enable', e);
+    }
     return;
   }
 
@@ -523,11 +541,17 @@ async function enableNotifications() {
     scheduleNotifications();
     updateNotifyIconState();
     enableAllPrayers();
+    saveEnabledPrayers();
     // Try to also subscribe to Push (Web Push) for background notifications
     try {
       await ensurePushSubscription();
     } catch (err) {
       console.warn('Push subscription failed:', err);
+    }
+    try {
+      await updateServerSubscription()
+    } catch(e) {
+      console.warn('Failed to update server subscription after granting permission', e);
     }
   } else {
     showToast("Notifications not enabled");
@@ -774,3 +798,42 @@ if (themeToggle) {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
   };
 }
+
+// PWA install prompt handling
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile; keep the event for later prompt
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // show the install button if not previously dismissed
+  try {
+    if (installBtn && !localStorage.getItem('pwaInstallPromptShown')) {
+      installBtn.classList.remove('hidden');
+    }
+  } catch (err) { /* ignore */ }
+});
+
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    try {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      localStorage.setItem('pwaInstallPromptShown', '1');
+      installBtn.classList.add('hidden');
+      deferredInstallPrompt = null;
+      if (choice && choice.outcome === 'accepted') {
+        showToast('Thanks — app installed!', 3000);
+      } else {
+        showToast('Install dismissed', 2000);
+      }
+    } catch (err) {
+      console.warn('Install prompt failed', err);
+      installBtn.classList.add('hidden');
+    }
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  try { localStorage.setItem('pwaInstallPromptShown', '1'); } catch (e) {}
+  if (installBtn) installBtn.classList.add('hidden');
+});
