@@ -113,6 +113,31 @@ loginForm.addEventListener('submit', async event => {
 
 document.getElementById('btnList').onclick = listSubscriptions;
 
+document.getElementById('btnTest').onclick = async () => {
+  out.innerHTML = 'Creating test subscription...';
+  try {
+    // Create test subscription with all prayers enabled
+    const enabledPrayers = {
+      'Fajr': true,
+      'Sunrise': true,
+      'Dhuhr': true,
+      'Asr': true,
+      'Maghrib': true,
+      'Isha': true
+    };
+    const r = await authedFetch('/api/test-create-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: 'Srinagar', enabledPrayers })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    out.innerText = `✓ Created test subscription:\n${JSON.stringify(data, null, 2)}\n\nNow run "Refresh subscriptions" to see it.`;
+  } catch (err) {
+    out.innerText = 'Error: ' + err.message;
+  }
+};
+
 document.getElementById('btnTrigger').onclick = async () => {
   out.innerHTML = 'Triggering...';
   try {
