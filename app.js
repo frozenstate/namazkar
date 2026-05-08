@@ -572,69 +572,50 @@ async function ensurePushSubscription() {
       return null;
     }
 
-    // Firefox has a bug where getSubscription() throws DOMException
-    // Try to get existing subscription, but if it fails, we'll recreate it
-    let existing = null;
-    try {
-      existing = await reg.pushManager.getSubscription();
-      if (existing) {
-        console.log('Existing push subscription found:', existing.endpoint);
-        // Verify subscription is still valid by checking endpoint
-        if (existing.endpoint) {
-          return existing;
-        }
-      }
-    } catch (err) {
-      console.warn('Error retrieving subscription (Firefox DOMException):', err.message);
-      // Continue to create a new subscription
-    }
-
     const publicKey = await getVapidPublicKey();
     if (!publicKey) {
       console.warn('No VAPID public key available from server');
       return null;
     }
 
-    console.log('Creating new push subscription...');
+    console.log('Creating push subscription...');
     
-    // Try to unsubscribe all existing subscriptions first (Firefox workaround)
+    // On Firefox, getSubscription() often fails. The safest approach is:
+    // 1. Try to subscribe (this will reuse existing or create new)
+    // 2. If it fails, ignore and continue (user still has local notifications)
     try {
-      const subs = await reg.pushManager.getSubscriptions();
-      for (const sub of subs || []) {
-        console.log('Unsubscribing from:', sub.endpoint);
-        await sub.unsubscribe();
-      }
-    } catch (err) {
-      console.warn('Could not unsubscribe from old subscriptions:', err);
-    }
-
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey)
-    });
-
-    console.log('Push subscription created:', sub.endpoint);
-
-    // Send subscription to server so it can be stored and used to send pushes
-    try {
-      const response = await fetch('/api/save-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      }
-      console.log('Subscription saved to server');
-    } catch (err) {
-      console.error('Failed to send subscription to server:', err);
-      showToast('Warning: Could not save subscription to server', 5000);
-    }
 
-    return sub;
+      console.log('Push subscription created:', sub.endpoint);
+
+      // Send subscription to server so it can be stored and used to send pushes
+      try {
+        const response = await fetch('/api/save-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        console.log('Subscription saved to server');
+      } catch (err) {
+        console.error('Failed to send subscription to server:', err);
+        showToast('Warning: Could not save subscription to server', 5000);
+      }
+
+      return sub;
+    } catch (err) {
+      // If push subscription fails, still allow local notifications to work
+      console.warn('Push subscription unavailable (this is OK, local notifications will still work):', err.message);
+      showToast('Local notifications enabled (push notifications unavailable on this browser)', 4000);
+      return null;
+    }
   } catch (err) {
-    console.error('Push subscription error:', err);
-    showToast('Push subscription failed: ' + err.message, 5000);
+    console.error('Unexpected error in ensurePushSubscription:', err);
     return null;
   }
 }
