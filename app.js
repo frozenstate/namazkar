@@ -48,6 +48,15 @@ function updateNotifyIconState() {
   notifyGlobal.setAttribute("aria-disabled", isEnabled ? "false" : "true");
   const img = notifyGlobal.querySelector('.icon-img');
   if (img) img.src = isEnabled ? 'icons/bell.svg' : 'icons/bell-slash.svg';
+
+  // Also log service worker status for debugging
+  if (isEnabled && "serviceWorker" in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      console.log("Service worker status: active and ready");
+    }).catch(err => {
+      console.warn("Service worker not ready:", err);
+    });
+  }
 }
 
 function loadEnabledPrayers() {
@@ -551,36 +560,61 @@ async function getVapidPublicKey() {
 }
 
 async function ensurePushSubscription() {
-  if (!('serviceWorker' in navigator)) return null;
-  const reg = await navigator.serviceWorker.ready;
-  if (!reg) return null;
-  // check existing subscription
-  const existing = await reg.pushManager.getSubscription();
-  if (existing) return existing;
-
-  const publicKey = await getVapidPublicKey();
-  if (!publicKey) {
-    console.warn('No VAPID public key available from server');
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service Workers not supported');
     return null;
   }
 
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey)
-  });
-
-  // Send subscription to server so it can be stored and used to send pushes
   try {
-    await fetch('/api/save-subscription', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
-    });
-  } catch (err) {
-    console.warn('Failed to send subscription to server', err);
-  }
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg) {
+      console.warn('Service worker not ready');
+      return null;
+    }
 
-  return sub;
+    // check existing subscription
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      console.log('Existing push subscription found:', existing.endpoint);
+      return existing;
+    }
+
+    const publicKey = await getVapidPublicKey();
+    if (!publicKey) {
+      console.warn('No VAPID public key available from server');
+      return null;
+    }
+
+    console.log('Subscribing to push notifications...');
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+
+    console.log('Push subscription created:', sub.endpoint);
+
+    // Send subscription to server so it can be stored and used to send pushes
+    try {
+      const response = await fetch('/api/save-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      console.log('Subscription saved to server');
+    } catch (err) {
+      console.error('Failed to send subscription to server:', err);
+      showToast('Warning: Could not save subscription to server', 5000);
+    }
+
+    return sub;
+  } catch (err) {
+    console.error('Push subscription error:', err);
+    showToast('Push subscription failed: ' + err.message, 5000);
+    return null;
+  }
 }
 
 // If service worker informs of subscription changes, attempt re-subscribe in page
@@ -647,8 +681,11 @@ if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
 updateNotifyIconState();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("persist.js").catch(err => {
-    console.warn("Service worker registration failed:", err);
+  navigator.serviceWorker.register("persist.js", { scope: "/" }).then(reg => {
+    console.log("Service worker registered successfully:", reg);
+  }).catch(err => {
+    console.error("Service worker registration failed:", err);
+    showToast("Failed to register service worker: " + err.message, 5000);
   });
 }
 
