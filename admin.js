@@ -4,6 +4,12 @@ const passwordInput = document.getElementById('adminPassword');
 const loginStatus = document.getElementById('loginStatus');
 const adminTools = document.getElementById('adminTools');
 const out = document.getElementById('out');
+const calendarForm = document.getElementById('calendarForm');
+const calendarMonthName = document.getElementById('calendarMonthName');
+const calendarHijriYear = document.getElementById('calendarHijriYear');
+const calendarStartDate = document.getElementById('calendarStartDate');
+const calendarMonthLength = document.getElementById('calendarMonthLength');
+const calendarStatus = document.getElementById('calendarStatus');
 
 function setLoggedIn(isLoggedIn) {
   loginPanel.classList.toggle('hidden', isLoggedIn);
@@ -35,6 +41,107 @@ async function checkSession() {
 
 async function authedFetch(url, options = {}) {
   return fetch(url, { credentials: 'include', ...options });
+}
+
+function buildCurrentCalendarSeed() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-u-ca-islamic', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+  const parts = formatter.formatToParts(now);
+  const day = Number(parts.find(part => part.type === 'day')?.value || '1');
+  const monthName = parts.find(part => part.type === 'month')?.value || 'Hijri';
+  const hijriYear = Number(parts.find(part => part.type === 'year')?.value || '1447');
+  const seedStart = new Date(now);
+  seedStart.setDate(seedStart.getDate() - Math.max(0, day - 1));
+  const year = seedStart.getFullYear();
+  const month = String(seedStart.getMonth() + 1).padStart(2, '0');
+  const date = String(seedStart.getDate()).padStart(2, '0');
+  return {
+    monthName,
+    hijriYear,
+    monthLength: day >= 29 ? 29 : 30,
+    startDate: `${year}-${month}-${date}`
+  };
+}
+
+function setCalendarStatus(message, isError = false) {
+  if (!calendarStatus) return;
+  calendarStatus.textContent = message;
+  calendarStatus.classList.toggle('error', isError);
+}
+
+function populateCalendarForm(settings) {
+  if (!calendarForm) return;
+  const seed = settings || buildCurrentCalendarSeed();
+  calendarMonthName.value = seed.monthName || '';
+  calendarHijriYear.value = seed.hijriYear || '';
+  calendarStartDate.value = seed.startDate ? String(seed.startDate).slice(0, 10) : '';
+  calendarMonthLength.value = String(seed.monthLength || 30);
+}
+
+async function loadCalendarSettings() {
+  setCalendarStatus('Loading calendar settings...');
+  try {
+    const res = await authedFetch('/api/calendar-settings');
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    populateCalendarForm(data.settings || null);
+    if (data.settings) {
+      setCalendarStatus(`Loaded ${data.settings.monthName || 'current'} month settings.`);
+    } else {
+      setCalendarStatus('No calendar settings saved yet. Form seeded from the current Islamic month.');
+    }
+  } catch (err) {
+    setCalendarStatus(`Error: ${err.message}`, true);
+  }
+}
+
+async function saveCalendarSettings(event) {
+  event.preventDefault();
+  const monthName = String(calendarMonthName.value || '').trim();
+  const hijriYear = Number(calendarHijriYear.value);
+  const startDate = calendarStartDate.value;
+  const monthLength = Number(calendarMonthLength.value);
+
+  if (!monthName) {
+    setCalendarStatus('Month name is required.', true);
+    return;
+  }
+  if (!Number.isInteger(hijriYear) || hijriYear < 1) {
+    setCalendarStatus('Hijri year must be a positive whole number.', true);
+    return;
+  }
+  if (!startDate) {
+    setCalendarStatus('Month start date is required.', true);
+    return;
+  }
+  if (![29, 30].includes(monthLength)) {
+    setCalendarStatus('Month length must be 29 or 30 days.', true);
+    return;
+  }
+
+  setCalendarStatus('Saving calendar settings...');
+  try {
+    const res = await authedFetch('/api/calendar-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        monthName,
+        hijriYear,
+        startDate,
+        monthLength
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    populateCalendarForm(data.settings || null);
+    setCalendarStatus('Calendar settings saved.');
+  } catch (err) {
+    setCalendarStatus(`Error: ${err.message}`, true);
+  }
 }
 
 async function listSubscriptions() {
@@ -160,6 +267,10 @@ document.getElementById('btnLogout').onclick = async () => {
   setLoggedIn(false);
 };
 
+if (calendarForm) {
+  calendarForm.addEventListener('submit', saveCalendarSettings);
+}
+
 (async () => {
   const loggedIn = await checkSession();
   setLoggedIn(loggedIn);
@@ -167,5 +278,6 @@ document.getElementById('btnLogout').onclick = async () => {
     loginStatus.textContent = 'Signed in.';
     loginStatus.classList.remove('error');
     await listSubscriptions();
+    await loadCalendarSettings();
   }
 })();

@@ -13,6 +13,11 @@ const PRAYER_LABELS = {
   "Isha": "Khoftan"
 };
 
+const CALENDAR_MODE_KEY = "calendarMode";
+const DAY_MS = 24 * 60 * 60 * 1000;
+let calendarSettings = null;
+let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) === "gregorian" ? "gregorian" : "hijri";
+
 const timesDiv = document.getElementById("times");
 const cityPicker = document.getElementById("cityPicker");
 const citySearch = document.getElementById("citySearch");
@@ -73,6 +78,95 @@ function saveEnabledPrayers() {
   localStorage.setItem("prayerNotifications", JSON.stringify(enabledPrayers));
 }
 
+function saveCalendarMode() {
+  localStorage.setItem(CALENDAR_MODE_KEY, calendarMode);
+}
+
+function normalizeDateInput(value) {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (!text) return "";
+  if (text.includes("T")) return text;
+  return `${text}T00:00:00`;
+}
+
+function getLocalMidnight(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function loadCalendarSettings() {
+  return fetch("/api/calendar-settings")
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load calendar settings`);
+      return res.json();
+    })
+    .then(data => {
+      calendarSettings = data && data.settings ? data.settings : null;
+      return calendarSettings;
+    })
+    .catch(err => {
+      console.warn("Calendar settings unavailable:", err);
+      calendarSettings = null;
+      return null;
+    });
+}
+
+function formatGregorianDate(now) {
+  const isPhone = window.matchMedia && window.matchMedia("(max-width: 600px)").matches;
+  const dateOpts = isPhone
+    ? { weekday: "short", month: "short", day: "numeric" }
+    : { weekday: "short", month: "short", day: "numeric", year: "numeric" };
+  return new Intl.DateTimeFormat(undefined, dateOpts).format(now);
+}
+
+function formatFallbackHijriDate(now) {
+  return new Intl.DateTimeFormat("en-u-ca-islamic", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(now);
+}
+
+function formatAdminHijriDate(now) {
+  if (!calendarSettings) return formatFallbackHijriDate(now);
+  const monthName = calendarSettings.monthName || calendarSettings.hijriMonth || "Hijri";
+  const hijriYear = calendarSettings.hijriYear || calendarSettings.monthYear || "";
+  const startDate = normalizeDateInput(calendarSettings.startDate);
+  if (!startDate) return formatFallbackHijriDate(now);
+
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return formatFallbackHijriDate(now);
+
+  const dayDiff = Math.floor((getLocalMidnight(now) - getLocalMidnight(start)) / DAY_MS) + 1;
+  if (!Number.isFinite(dayDiff) || dayDiff < 1) return formatFallbackHijriDate(now);
+
+  const suffix = hijriYear ? ` ${hijriYear} AH` : " AH";
+  return `${dayDiff} ${monthName}${suffix}`;
+}
+
+function renderCalendarDate(now = new Date()) {
+  if (calendarMode === "gregorian") return formatGregorianDate(now);
+  return formatAdminHijriDate(now);
+}
+
+function updateDateToggleState(formattedDate) {
+  if (!currentDateEl) return;
+  currentDateEl.setAttribute("aria-pressed", String(calendarMode === "gregorian"));
+  currentDateEl.title = calendarMode === "gregorian"
+    ? "Showing Gregorian date. Click to show hijri date."
+    : "Showing hijri date. Click to show Gregorian date.";
+  currentDateEl.setAttribute("aria-label", currentDateEl.title);
+  currentDateEl.dataset.calendarMode = calendarMode;
+  if (formattedDate) currentDateEl.textContent = formattedDate;
+}
+
+function toggleCalendarMode() {
+  calendarMode = calendarMode === "gregorian" ? "hijri" : "gregorian";
+  saveCalendarMode();
+  updateDayContext();
+}
+
 async function loadData() {
   loadEnabledPrayers();
   try {
@@ -106,6 +200,7 @@ async function loadData() {
     selectedCity = cities.base_city || Object.keys(cities.cities)[0];
   }
 
+  await loadCalendarSettings();
   initTheme();
   populateCities();
   renderTimes();
@@ -446,11 +541,8 @@ function formatCountdown(ms) {
 
 function updateDayContext() {
   const now = new Date();
-  const isPhone = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-  const dateOpts = isPhone ? { weekday: 'short', month: 'short', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-  const dateFmt = new Intl.DateTimeFormat(undefined, dateOpts);
   const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
-  if (currentDateEl) currentDateEl.textContent = dateFmt.format(now);
+  updateDateToggleState(renderCalendarDate(now));
   if (currentTimeEl) currentTimeEl.textContent = timeFmt.format(now);
 }
 
@@ -673,6 +765,7 @@ function scheduleNotifications() {
 }
 
 if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
+if (currentDateEl) currentDateEl.onclick = toggleCalendarMode;
 updateNotifyIconState();
 
 if ("serviceWorker" in navigator) {

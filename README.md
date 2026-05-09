@@ -20,6 +20,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - **City offsets:** Applies per-city minute offsets from [data/offset.json](data/offset.json).
 - **Next prayer:** Shows the next upcoming prayer with a live countdown.
 - **Notifications:** Global enable + per-prayer toggles, with foreground timers and Web Push support for background delivery.
+- **Calendar toggle:** The top-bar date defaults to the Kashmir hijri month record and can be toggled to Gregorian with a click.
 - **Dark mode:** Default dark theme with automatic icon inversion.
 - **PWA caching:** Cache-first for assets and data for quick startup.
 
@@ -33,6 +34,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - [data/offset.json](data/offset.json): City list and minute offsets.
 - [icons/](icons/): SVG icons (bell, bell-slash, dark-mode, mosque, round favicon, Apple touch icon).
 - [api/](api/): Vercel serverless endpoints for VAPID key lookup, Firestore-backed subscription storage, and push delivery.
+- [api/calendar-settings.js](api/calendar-settings.js): Public read + admin write endpoint for the active Kashmir hijri month record.
 - [server/push-server.js](server/push-server.js): Local helper script for sending a test push notification.
 
 **Data Format**
@@ -65,6 +67,7 @@ VAPID_PRIVATE_KEY=...
 - Add `ADMIN_PANEL_PASSWORD_HASH` and `ADMIN_PANEL_SESSION_SECRET` for the admin login.
 - Add `ADMIN_SCHEDULE_SECRET` for cron-based scheduled pushes.
 - Firestore stores subscriptions in a `subscriptions` collection.
+- Firestore stores the active Kashmir calendar record in `calendar/kashmir`.
 - To deliver scheduled pushes automatically, call `POST /api/trigger-scheduled` every minute from a cron job or scheduler with header `x-admin-schedule-secret: <ADMIN_SCHEDULE_SECRET>`.
 - For a one-off manual push test, save a subscription JSON file from the browser and run `node server/push-server.js ./subscription.json`.
 
@@ -72,6 +75,8 @@ VAPID_PRIVATE_KEY=...
 - The admin page is online and protected by a secure session cookie.
 - Log in with the password set in `ADMIN_PANEL_PASSWORD_HASH`.
 - The session cookie is HttpOnly and SameSite=Strict.
+- The admin page now includes a calendar settings card for the Kashmir hijri month. Save the active month name, hijri year, month start date, and month length there.
+- Month length is controlled from the admin panel so 29-day and 30-day months can be updated without redeploying the frontend.
 - To generate a password hash locally, run:
 
 ```bash

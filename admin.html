@@ -41,6 +41,37 @@
       <button id="btnLogout" type="button">Log out</button>
     </div>
     <p class="muted">Displayed subscription data is masked. Only the endpoint fingerprint and metadata are shown.</p>
+    <div class="card">
+      <h2>Calendar settings</h2>
+      <p class="muted">Update the active Kashmir hijri month here. The app uses this record to show the default hijri date and to handle 29/30-day month changes without code deploys.</p>
+      <form id="calendarForm">
+        <div class="row">
+          <label>
+            <strong>Hijri month</strong><br />
+            <input id="calendarMonthName" type="text" placeholder="Shawwal" autocomplete="off" />
+          </label>
+          <label>
+            <strong>Hijri year</strong><br />
+            <input id="calendarHijriYear" type="number" min="1" step="1" placeholder="1447" />
+          </label>
+          <label>
+            <strong>Month start</strong><br />
+            <input id="calendarStartDate" type="date" />
+          </label>
+          <label>
+            <strong>Month length</strong><br />
+            <select id="calendarMonthLength">
+              <option value="29">29 days</option>
+              <option value="30">30 days</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="btnSaveCalendar" type="submit">Save calendar month</button>
+        </div>
+      </form>
+      <p id="calendarStatus" class="muted">Loading calendar settings...</p>
+    </div>
     <div id="out"></div>
   </div>
   <script src="admin.js"></script>
