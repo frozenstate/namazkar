@@ -5,6 +5,7 @@ const webpush = require('web-push');
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_CONTACT = 'mailto:namazkar@localhost.invalid';
+const DEBUG_TRIGGER_SCHEDULED = process.env.TRIGGER_SCHEDULED_DEBUG === '1';
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(VAPID_CONTACT, VAPID_PUBLIC, VAPID_PRIVATE);
@@ -114,6 +115,12 @@ function getPrayerNotificationText(prayerKey) {
   };
 }
 
+function logDebug(message, ...args) {
+  if (DEBUG_TRIGGER_SCHEDULED) {
+    console.log(message, ...args);
+  }
+}
+
 module.exports = async (req, res) => {
   // This endpoint is intended to be called by a scheduler (cron) every minute.
   const cronSecret = process.env.ADMIN_SCHEDULE_SECRET || '';
@@ -145,7 +152,6 @@ module.exports = async (req, res) => {
       return res.status(500).end('Missing or invalid offsets');
     }
 
-    // timezone from table metadata if present
     const tableTz = (table.meta && table.meta.timezone) || 'UTC';
     console.log('trigger-scheduled: using timezone', tableTz);
 
@@ -158,42 +164,37 @@ module.exports = async (req, res) => {
       return res.status(200).end('No times for today');
     }
 
-    // collect prayers that are due in the next window
-    const duePrayers = {};
-    for (const prayer in times) {
-      duePrayers[prayer] = times[prayer];
-    }
+    const duePrayers = times;
 
     const snap = await firestore.collection('subscriptions').get();
     let totalToSend = 0;
     const sendPromises = [];
+    let dueMatches = 0;
     snap.forEach(doc => {
       const data = doc.data();
       if (!data || !data.subscription) return;
       const city = data.city || offsets.base_city;
       const cityOffset = (offsets.cities && offsets.cities[city] && offsets.cities[city].offset) || 0;
-      // Debug: log subscription summary
-      console.log(`trigger-scheduled: sub ${doc.id} city=${city} cityOffset=${cityOffset} enabledPrayers=${JSON.stringify(data.enabledPrayers || {})}`);
+      logDebug(`trigger-scheduled: sub ${doc.id} city=${city} cityOffset=${cityOffset} enabledPrayers=${JSON.stringify(data.enabledPrayers || {})}`);
       for (const prayer in duePrayers) {
         const at = parseTimeToDate(duePrayers[prayer], cityOffset, now, tableTz);
         const diffMs = at.getTime() - now.getTime();
-        // Debug: log computed fire time and difference
-        console.log(`trigger-scheduled: doc=${doc.id} prayer=${prayer} at=${at.toISOString()} diffMs=${diffMs}`);
         if (at > now && diffMs <= windowMs) {
+          dueMatches++;
           const enabled = (data.enabledPrayers && data.enabledPrayers[prayer]) || false;
-          console.log(`trigger-scheduled: doc=${doc.id} prayer=${prayer} enabled=${enabled}`);
+          logDebug(`trigger-scheduled: doc=${doc.id} prayer=${prayer} at=${at.toISOString()} diffMs=${diffMs} enabled=${enabled}`);
           if (!enabled) continue;
           const notificationText = getPrayerNotificationText(prayer);
           const payload = { title: notificationText.title, body: notificationText.body, tag: prayer };
           totalToSend++;
           sendPromises.push(webpush.sendNotification(data.subscription, JSON.stringify(payload)).catch(err => {
-            console.warn('push failed for', doc.id, err && err.statusCode);
+            console.warn('trigger-scheduled: push failed', doc.id, err && err.statusCode);
           }));
         }
       }
     });
 
-    console.log('trigger-scheduled: found', snap.size, 'subscriptions, sending', totalToSend, 'pushes');
+    console.log('trigger-scheduled: found', snap.size, 'subscriptions, due', dueMatches, 'sending', totalToSend, 'pushes');
     await Promise.allSettled(sendPromises);
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = 200;
