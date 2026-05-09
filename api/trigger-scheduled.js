@@ -26,7 +26,7 @@ async function fetchJSON(url) {
     }
     return await response.json();
   } catch (err) {
-    console.error(`Error fetching ${url}:`, err.message);
+    console.error(`Error fetching ${url}:`, err && err.message ? err.message : err);
     return null;
   }
 }
@@ -35,11 +35,62 @@ function todayKey(d = new Date()) {
   return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
-function parseTimeToDate(timeStr, offsetMin, baseDate = new Date()) {
+// Determine timezone offset in minutes for `timeZone` at `date`
+// Returns number of minutes local_time - UTC_time (can be positive or negative)
+function tzOffsetMinutes(timeZone, date = new Date()) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const parts = dtf.formatToParts(date);
+  const year = Number(parts.find(p => p.type === 'year').value);
+  const month = Number(parts.find(p => p.type === 'month').value) - 1;
+  const day = Number(parts.find(p => p.type === 'day').value);
+  const hour = Number(parts.find(p => p.type === 'hour').value);
+  const minute = Number(parts.find(p => p.type === 'minute').value);
+
+  // local minutes at tz
+  const localTotal = hour * 60 + minute;
+  // UTC minutes of the same instant
+  const utcTotal = date.getUTCHours() * 60 + date.getUTCMinutes();
+
+  let diff = localTotal - utcTotal;
+  if (diff > 12 * 60) diff -= 24 * 60;
+  if (diff < -12 * 60) diff += 24 * 60;
+  return diff;
+}
+
+// Build a Date for the prayer time (table times are in table.meta.timezone).
+// Returns a Date (server-local) representing the instant when the local clock at tz shows timeStr,
+// after applying city offset in minutes.
+function parseTimeToDate(timeStr, cityOffsetMin = 0, baseDate = new Date(), tableTz = 'UTC') {
   const [h, m] = timeStr.split(':').map(Number);
-  const d = new Date(baseDate);
-  d.setHours(h, m + offsetMin, 0, 0);
-  return d;
+
+  // Determine the date (year/month/day) in the table timezone for baseDate
+  const dtfDate = new Intl.DateTimeFormat('en-US', {
+    timeZone: tableTz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const parts = dtfDate.formatToParts(baseDate);
+  const year = Number(parts.find(p => p.type === 'year').value);
+  const month = Number(parts.find(p => p.type === 'month').value) - 1;
+  const day = Number(parts.find(p => p.type === 'day').value);
+
+  // timezone offset (minutes) for tableTz at baseDate
+  const tzOffset = tzOffsetMinutes(tableTz, baseDate);
+
+  // UTC milliseconds for the local time (year-month-day h:m in tableTz)
+  // Date.UTC treats the components as UTC; subtract tzOffset to convert local->UTC,
+  // then apply city offset minutes.
+  const utcMs = Date.UTC(year, month, day, h, m) - (tzOffset * 60 * 1000) + (cityOffsetMin * 60 * 1000);
+  return new Date(utcMs);
 }
 
 const PRAYER_LABELS = {
@@ -94,33 +145,41 @@ module.exports = async (req, res) => {
       return res.status(500).end('Missing or invalid offsets');
     }
 
+    // timezone from table metadata if present
+    const tableTz = (table.meta && table.meta.timezone) || 'UTC';
+    console.log('trigger-scheduled: using timezone', tableTz);
+
     const now = new Date();
-    const windowMs = 60_000; // look for prayers within next 60s
+    const windowMs = 120_000; // look for prayers within next 120s to allow for jitter
     const key = todayKey(now);
     const times = table.days[key];
-    if (!times) return res.status(200).end('No times for today');
+    if (!times) {
+      console.log('trigger-scheduled: no times for today', key);
+      return res.status(200).end('No times for today');
+    }
 
     // collect prayers that are due in the next window
     const duePrayers = {};
     for (const prayer in times) {
-      // for each city, offset may differ; we'll check per subscription
       duePrayers[prayer] = times[prayer];
     }
 
     const snap = await firestore.collection('subscriptions').get();
+    let totalToSend = 0;
     const sendPromises = [];
     snap.forEach(doc => {
       const data = doc.data();
       if (!data || !data.subscription) return;
       const city = data.city || offsets.base_city;
-      const offset = (offsets.cities && offsets.cities[city] && offsets.cities[city].offset) || 0;
+      const cityOffset = (offsets.cities && offsets.cities[city] && offsets.cities[city].offset) || 0;
       for (const prayer in duePrayers) {
-        const at = parseTimeToDate(duePrayers[prayer], offset);
+        const at = parseTimeToDate(duePrayers[prayer], cityOffset, now, tableTz);
         if (at > now && (at - now) <= windowMs) {
           const enabled = (data.enabledPrayers && data.enabledPrayers[prayer]) || false;
           if (!enabled) continue;
           const notificationText = getPrayerNotificationText(prayer);
           const payload = { title: notificationText.title, body: notificationText.body, tag: prayer };
+          totalToSend++;
           sendPromises.push(webpush.sendNotification(data.subscription, JSON.stringify(payload)).catch(err => {
             console.warn('push failed for', doc.id, err && err.statusCode);
           }));
@@ -128,10 +187,11 @@ module.exports = async (req, res) => {
       }
     });
 
+    console.log('trigger-scheduled: found', snap.size, 'subscriptions, sending', totalToSend, 'pushes');
     await Promise.allSettled(sendPromises);
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, sent: sendPromises.length }));
+    res.end(JSON.stringify({ ok: true, sent: totalToSend }));
   } catch (err) {
     console.error('trigger-scheduled error', err);
     res.statusCode = 500;
