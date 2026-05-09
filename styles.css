@@ -399,3 +399,242 @@ small { color: var(--muted); }
   text-align: center;
   font-weight: 500;
 }
+
+/* Admin panel styles */
+.hidden {
+  display: none !important;
+}
+
+.admin-body {
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.admin-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.admin-header {
+  margin-bottom: 1.5rem;
+}
+
+.admin-header h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.admin-header p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.admin-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .admin-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  background: var(--card);
+}
+
+.admin-card h2 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+}
+
+.admin-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.admin-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.admin-buttons button {
+  padding: 0.75rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 180ms ease;
+}
+
+.admin-buttons button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.admin-buttons button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.admin-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.admin-form-row.four-col {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.admin-form input,
+.admin-form select {
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.admin-form input:focus,
+.admin-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1);
+}
+
+.admin-form button[type="submit"] {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 180ms ease;
+  width: fit-content;
+}
+
+.admin-form button[type="submit"]:hover {
+  opacity: 0.9;
+}
+
+.admin-form button[type="submit"]:active {
+  transform: scale(0.98);
+}
+
+.admin-status {
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--highlight);
+  color: var(--fg);
+}
+
+.admin-status.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.theme-dark .admin-status.error {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.admin-login-panel {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.admin-subscriptions {
+  margin-top: 1.5rem;
+}
+
+.admin-sub-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: var(--highlight);
+}
+
+.admin-sub-item div {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.admin-sub-item code {
+  background: var(--card);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.admin-sub-item button {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.admin-sub-item button:hover {
+  opacity: 0.9;
+}
+
+.admin-output {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--highlight);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.admin-output pre {
+  margin: 0;
+  font-family: monospace;
+}
+
+.admin-output.empty {
+  display: none;
+}

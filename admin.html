@@ -6,73 +6,75 @@
   <title>NamazKar Admin</title>
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <meta name="referrer" content="no-referrer" />
-  <style>
-    body{font-family:system-ui,Arial;margin:20px;max-width:960px}
-    input,button{padding:8px 10px;margin:4px 0}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .card{border:1px solid #d9d9d9;border-radius:14px;padding:16px;margin:12px 0;background:#fafafa}
-    .sub{border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0;word-break:break-word;background:#fff}
-    .muted{opacity:.72;font-size:.92rem}
-    pre{white-space:pre-wrap;overflow-wrap:anywhere}
-    .hidden{display:none}
-    .error{color:#b91c1c}
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <h1>Namaz Kar — Admin</h1>
-  <p class="muted">Admin access is protected by a secure session cookie. Log in to view subscriptions and trigger pushes.</p>
+<body class="admin-body">
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1>Namaz Kar — Admin</h1>
+      <p>Admin access is protected by a secure session cookie. Log in to manage the app.</p>
+    </div>
 
-  <div id="loginPanel" class="card">
-    <form id="loginForm">
-      <label for="adminPassword"><strong>Password</strong></label><br />
-      <input id="adminPassword" type="password" placeholder="Enter admin password" size="40" autocomplete="off" autocapitalize="off" spellcheck="false" />
-      <div class="row">
-        <button id="btnLogin" type="submit">Log in</button>
+    <div id="loginPanel" class="admin-login-panel">
+      <div class="admin-card">
+        <h2>Sign in</h2>
+        <form id="loginForm" class="admin-form">
+          <label for="adminPassword">
+            Password
+            <input id="adminPassword" type="password" placeholder="Enter admin password" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button id="btnLogin" type="submit">Log in</button>
+        </form>
+        <p id="loginStatus" class="admin-status">Not signed in.</p>
       </div>
-    </form>
-    <p id="loginStatus" class="muted">Not signed in.</p>
-  </div>
+    </div>
 
-  <div id="adminTools" class="hidden card">
-    <div class="row">
-      <button id="btnList" type="button">Refresh subscriptions</button>
-      <button id="btnTrigger" type="button">Trigger scheduled job</button>
-      <button id="btnTest" type="button">Create test subscription</button>
-      <button id="btnLogout" type="button">Log out</button>
-    </div>
-    <p class="muted">Displayed subscription data is masked. Only the endpoint fingerprint and metadata are shown.</p>
-    <div class="card">
-      <h2>Calendar settings</h2>
-      <p class="muted">Update the active Kashmir hijri month here. The app uses this record to show the default hijri date and to handle 29/30-day month changes without code deploys.</p>
-      <form id="calendarForm">
-        <div class="row">
-          <label>
-            <strong>Hijri month</strong><br />
-            <input id="calendarMonthName" type="text" placeholder="Shawwal" autocomplete="off" />
-          </label>
-          <label>
-            <strong>Hijri year</strong><br />
-            <input id="calendarHijriYear" type="number" min="1" step="1" placeholder="1447" />
-          </label>
-          <label>
-            <strong>Month start</strong><br />
-            <input id="calendarStartDate" type="date" />
-          </label>
-          <label>
-            <strong>Month length</strong><br />
-            <select id="calendarMonthLength">
-              <option value="29">29 days</option>
-              <option value="30">30 days</option>
-            </select>
-          </label>
+    <div id="adminTools" class="hidden admin-panel">
+      <div class="admin-card">
+        <h2>Subscriptions</h2>
+        <p>Manage push subscriptions and trigger scheduled notifications.</p>
+        <div class="admin-buttons">
+          <button id="btnList" type="button">Refresh subscriptions</button>
+          <button id="btnTrigger" type="button">Trigger scheduled job</button>
+          <button id="btnTest" type="button">Create test subscription</button>
         </div>
-        <div class="row">
-          <button id="btnSaveCalendar" type="submit">Save calendar month</button>
+        <p style="font-size: 0.85rem; color: var(--muted); margin: 1rem 0 0 0;">Subscription data is masked. Only endpoint fingerprint and metadata are shown.</p>
+        <div id="out" class="admin-subscriptions"></div>
+        <div class="admin-buttons" style="margin-top: 1rem;">
+          <button id="btnLogout" type="button">Log out</button>
         </div>
-      </form>
-      <p id="calendarStatus" class="muted">Loading calendar settings...</p>
+      </div>
+
+      <div class="admin-card">
+        <h2>Calendar settings</h2>
+        <p>Update the active Kashmir hijri month. This controls the default hijri date shown in the app without requiring code deploys.</p>
+        <form id="calendarForm" class="admin-form">
+          <div class="admin-form-row four-col">
+            <label>
+              Hijri month
+              <input id="calendarMonthName" type="text" placeholder="Shawwal" autocomplete="off" />
+            </label>
+            <label>
+              Hijri year
+              <input id="calendarHijriYear" type="number" min="1" step="1" placeholder="1447" />
+            </label>
+            <label>
+              Month start
+              <input id="calendarStartDate" type="date" />
+            </label>
+            <label>
+              Month length
+              <select id="calendarMonthLength">
+                <option value="29">29 days</option>
+                <option value="30">30 days</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">Save calendar month</button>
+        </form>
+        <p id="calendarStatus" class="admin-status" style="margin-top: 1rem;">Loading calendar settings...</p>
+      </div>
     </div>
-    <div id="out"></div>
   </div>
   <script src="admin.js"></script>
 </body>

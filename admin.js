@@ -158,15 +158,15 @@ async function listSubscriptions() {
     data.subscriptions.forEach(s => {
       const clean = maskSubscription(s);
       const d = document.createElement('div');
-      d.className = 'sub';
+      d.className = 'admin-sub-item';
       d.innerHTML = `
         <div><strong>Subscription</strong> <code>${clean.id}</code></div>
         <div><strong>Endpoint</strong> <code>${clean.endpoint}</code></div>
         <div><strong>City</strong> ${clean.city}</div>
         <div><strong>Updated</strong> ${clean.updatedAt}</div>
-        <details>
-          <summary>Prayer preferences</summary>
-          <pre>${JSON.stringify(clean.enabledPrayers, null, 2)}</pre>
+        <details style="margin: 0.75rem 0 0 0;">
+          <summary style="cursor: pointer; font-weight: 500;">Prayer preferences</summary>
+          <pre style="margin: 0.5rem 0 0 0; font-size: 0.8rem;">${JSON.stringify(clean.enabledPrayers, null, 2)}</pre>
         </details>
       `;
       const btn = document.createElement('button');
