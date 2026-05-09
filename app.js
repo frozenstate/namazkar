@@ -32,9 +32,22 @@ const nextCountdownEl = document.getElementById("next-countdown");
 const themeToggle = document.getElementById("themeToggle");
 const offsetText = document.getElementById("offset-text");
 const toastContainer = document.getElementById("toast-container");
+const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
 let deferredInstallPrompt = null;
 const installBtn = document.getElementById('installBtn');
+
+function applyTheme(isDark) {
+  document.documentElement.classList.toggle('theme-dark', isDark);
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  if (document.body) {
+    document.body.classList.toggle('theme-dark', isDark);
+    document.body.style.colorScheme = isDark ? 'dark' : 'light';
+  }
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute('content', isDark ? '#141a22' : '#0f766e');
+  }
+}
 
 function updateNotifyIconState() {
   if (!notifyGlobal) return;
@@ -448,6 +461,7 @@ function showToast(message, duration = 3000) {
 
 function renderTimes() {
   if (!timetable || !timetable.days || !cities || !cities.cities) {
+    if (timesDiv) timesDiv.setAttribute('aria-busy', 'false');
     timesDiv.innerHTML = "<p class='error'>Unable to load prayer times. Please refresh the page.</p>";
     return;
   }
@@ -455,6 +469,7 @@ function renderTimes() {
   const key = todayKey();
   const baseTimes = timetable.days[key];
   if (!baseTimes) {
+    if (timesDiv) timesDiv.setAttribute('aria-busy', 'false');
     timesDiv.innerHTML = "<p class='error'>No prayer times available for today.</p>";
     return;
   }
@@ -490,6 +505,7 @@ function renderTimes() {
     timesDiv.appendChild(row);
   }
   updateNextPrayer();
+  timesDiv.setAttribute('aria-busy', 'false');
 }
 
 function enableAllPrayers() {
@@ -839,17 +855,19 @@ function initTheme() {
   const saved = localStorage.getItem('theme');
   // Default to dark if no saved theme
   const shouldDark = saved ? saved === 'dark' : true;
-  document.body.classList.toggle('theme-dark', shouldDark);
+  applyTheme(shouldDark);
 }
 
 if (themeToggle) {
   themeToggle.onclick = () => {
-    const isDark = document.body.classList.toggle('theme-dark');
+    const isDark = !document.documentElement.classList.contains('theme-dark');
+    applyTheme(isDark);
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
   };
 }
 
 // PWA install prompt handling
+initTheme();
 // Show install button on mobile devices (or when beforeinstallprompt fires)
 function detectMobileDevice() {
   const userAgent = navigator.userAgent || '';

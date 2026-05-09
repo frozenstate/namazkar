@@ -7,7 +7,20 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/favicon-round.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.svg" />
-  <meta name="theme-color" content="#0f766e" />
+  <meta name="theme-color" content="#141a22" />
+  <script>
+    (function () {
+      try {
+        const savedTheme = localStorage.getItem('theme');
+        const shouldDark = savedTheme ? savedTheme === 'dark' : true;
+        document.documentElement.classList.toggle('theme-dark', shouldDark);
+        document.documentElement.style.colorScheme = shouldDark ? 'dark' : 'light';
+      } catch (err) {
+        document.documentElement.classList.add('theme-dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -34,8 +47,10 @@
   </header>
 
   <div class="container">
-    <img src="icons/mosque.svg" alt="Namaz Kar Logo" class="logo" />
-    <h1>Namaz Kar?</h1>
+    <div class="hero">
+      <img src="icons/mosque.svg" alt="Namaz Kar Logo" class="logo" />
+      <h1>Namaz Kar?</h1>
+    </div>
 
   <div id="toast-container" class="toast-container"></div>
 
@@ -57,7 +72,9 @@
     <small id="next-countdown">—</small>
   </div>
 
-  <div class="times" id="times"></div>
+  <div class="times" id="times" aria-busy="true">
+    <p class="times-loading">Loading prayer times...</p>
+  </div>
 
   <div class="settings">
     <p><small>

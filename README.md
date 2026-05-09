@@ -1,6 +1,10 @@
 # Namaz Kar?
 
-<img src="icons/favicon-round.svg" alt="Namaz Kar logo" width="96" height="96">
+<div align="center">
+   <img src="icons/favicon-round.svg" alt="Namaz Kar logo" width="96" height="96" />
+
+   <h1>Namaz Kar?</h1>
+</div>
 
 Prayer times for the Kashmir Valley based on [the official Meeqat published by Dar-ul-Uloom Rahimiyyah, Bandipur](http://raheemiyyah.com/meeqat-us-salat/). This repo contains a small, offline-capable web app that shows today's prayer times, highlights the next prayer, and supports browser notifications, including Web Push when the backend is configured.
 
@@ -36,6 +40,12 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - [api/](api/): Vercel serverless endpoints for VAPID key lookup, Firestore-backed subscription storage, and push delivery.
 - [api/calendar-settings.js](api/calendar-settings.js): Public read + admin write endpoint for the active Kashmir hijri month record.
 - [server/push-server.js](server/push-server.js): Local helper script for sending a test push notification.
+
+**Latest updates (May 2026)**
+- Startup/UX: the app now applies the saved dark theme before the first paint to avoid a brief light-mode flash on load, and the prayer times area shows a small "Loading prayer times..." placeholder until `data/table.json` hydrates.
+- Admin panel: UI refactor — all admin CSS moved into `styles.css` (admin-* classes), the calendar settings card is on the right, subscriptions/tools on the left (two-column responsive layout). The logout button appears in the top action row and the subscriptions list shows only a count by default; click "Refresh subscriptions" to list full details.
+- Calendar settings: `api/calendar-settings.js` (Firestore `calendar/kashmir`) is used to seed and persist the Kashmir hijri month (month name, hijri year, start date, month length). The admin form auto-loads settings on login.
+- Theme & accessibility: dark mode is the default and is preserved across reloads; icon inversion and coloring updated for consistent visibility.
 
 **Data Format**
 - `table.json`

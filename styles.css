@@ -36,6 +36,16 @@ select, button {
   margin: 0 auto;
   text-align: center;
 }
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.hero h1 {
+  margin: 0.15rem 0 0;
+}
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -72,6 +82,15 @@ select, button {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
+}
+.times[aria-busy="true"] {
+  min-height: 12rem;
+}
+.times-loading {
+  margin: 0;
+  padding: 0.75rem 0;
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 .time {
   display: flex;
@@ -436,6 +455,7 @@ small { color: var(--muted); }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+  align-items: start;
 }
 
 @media (max-width: 900px) {
@@ -449,6 +469,7 @@ small { color: var(--muted); }
   border-radius: 12px;
   padding: 1.5rem;
   background: var(--card);
+  align-self: start;
 }
 
 .admin-card h2 {
