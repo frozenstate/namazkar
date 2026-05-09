@@ -99,6 +99,28 @@ async function loadCalendarSettings() {
   }
 }
 
+async function showSubscriptionCount() {
+  try {
+    const res = await authedFetch('/api/list-subscriptions');
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const count = (data.subscriptions || []).length;
+    out.innerHTML = '';
+    const message = document.createElement('p');
+    message.style.margin = '0 0 1rem 0';
+    message.style.fontSize = '0.95rem';
+    message.style.color = 'var(--muted)';
+    message.textContent = `${count} active subscription${count !== 1 ? 's' : ''}.`;
+    out.appendChild(message);
+  } catch (err) {
+    out.innerText = 'Error: ' + err.message;
+    if (String(err.message || '').includes('Unauthorized')) {
+      setLoggedIn(false);
+      loginStatus.textContent = 'Session expired. Please log in again.';
+    }
+  }
+}
+
 async function saveCalendarSettings(event) {
   event.preventDefault();
   const monthName = String(calendarMonthName.value || '').trim();
@@ -211,7 +233,8 @@ loginForm.addEventListener('submit', async event => {
     loginStatus.textContent = 'Signed in.';
     loginStatus.classList.remove('error');
     setLoggedIn(true);
-    await listSubscriptions();
+    await showSubscriptionCount();
+    await loadCalendarSettings();
   } catch (err) {
     loginStatus.textContent = err.message;
     loginStatus.classList.add('error');

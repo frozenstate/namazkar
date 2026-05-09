@@ -580,6 +580,8 @@ small { color: var(--muted); }
 
 .admin-subscriptions {
   margin-top: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .admin-sub-item {
@@ -588,6 +590,9 @@ small { color: var(--muted); }
   padding: 1rem;
   margin-bottom: 1rem;
   background: var(--highlight);
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .admin-sub-item div {
