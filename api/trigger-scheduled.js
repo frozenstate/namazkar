@@ -172,10 +172,16 @@ module.exports = async (req, res) => {
       if (!data || !data.subscription) return;
       const city = data.city || offsets.base_city;
       const cityOffset = (offsets.cities && offsets.cities[city] && offsets.cities[city].offset) || 0;
+      // Debug: log subscription summary
+      console.log(`trigger-scheduled: sub ${doc.id} city=${city} cityOffset=${cityOffset} enabledPrayers=${JSON.stringify(data.enabledPrayers || {})}`);
       for (const prayer in duePrayers) {
         const at = parseTimeToDate(duePrayers[prayer], cityOffset, now, tableTz);
-        if (at > now && (at - now) <= windowMs) {
+        const diffMs = at.getTime() - now.getTime();
+        // Debug: log computed fire time and difference
+        console.log(`trigger-scheduled: doc=${doc.id} prayer=${prayer} at=${at.toISOString()} diffMs=${diffMs}`);
+        if (at > now && diffMs <= windowMs) {
           const enabled = (data.enabledPrayers && data.enabledPrayers[prayer]) || false;
+          console.log(`trigger-scheduled: doc=${doc.id} prayer=${prayer} enabled=${enabled}`);
           if (!enabled) continue;
           const notificationText = getPrayerNotificationText(prayer);
           const payload = { title: notificationText.title, body: notificationText.body, tag: prayer };
