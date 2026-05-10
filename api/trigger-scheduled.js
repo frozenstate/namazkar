@@ -6,6 +6,8 @@ const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_CONTACT = 'mailto:namazkar@localhost.invalid';
 const DEBUG_TRIGGER_SCHEDULED = process.env.TRIGGER_SCHEDULED_DEBUG === '1';
+const SCHEDULED_PUSH_LOG_COLLECTION = 'scheduled_push_logs';
+const SCHEDULED_PUSH_STALE_MS = 5 * 60 * 1000;
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(VAPID_CONTACT, VAPID_PUBLIC, VAPID_PRIVATE);
@@ -121,6 +123,39 @@ function logDebug(message, ...args) {
   }
 }
 
+function makeScheduledPushId(dayKey, subscriptionId, prayer) {
+  return [dayKey, subscriptionId, prayer]
+    .map(part => String(part || '').trim().replace(/[^A-Za-z0-9._:-]/g, '_'))
+    .join('__');
+}
+
+async function claimScheduledPush(docRef, claimData) {
+  return firestore.runTransaction(async tx => {
+    const existing = await tx.get(docRef);
+    if (existing.exists) {
+      const data = existing.data() || {};
+      const status = String(data.status || '');
+      const updatedAtMs = data.updatedAt && typeof data.updatedAt.toMillis === 'function'
+        ? data.updatedAt.toMillis()
+        : 0;
+      if (status === 'sent' || status === 'failed') {
+        return { claimed: false, status };
+      }
+      if (status === 'sending' && updatedAtMs && (Date.now() - updatedAtMs) < SCHEDULED_PUSH_STALE_MS) {
+        return { claimed: false, status };
+      }
+    }
+
+    tx.set(docRef, {
+      ...claimData,
+      status: 'sending',
+      updatedAt: new Date()
+    }, { merge: true });
+
+    return { claimed: true };
+  });
+}
+
 module.exports = async (req, res) => {
   // This endpoint is intended to be called by a scheduler (cron) every minute.
   const cronSecret = process.env.ADMIN_SCHEDULE_SECRET || '';
@@ -156,7 +191,10 @@ module.exports = async (req, res) => {
     console.log('trigger-scheduled: using timezone', tableTz);
 
     const now = new Date();
-    const windowMs = 120_000; // look for prayers within next 120s to allow for jitter
+    // Use a lookahead smaller than the cron interval (60s) to avoid duplicate
+    // matches when the scheduler runs every minute. 55s gives a small safety
+    // margin while preventing overlap between consecutive runs.
+    const windowMs = 55_000; // look for prayers within next 55s
     const key = todayKey(now);
     const times = table.days[key];
     if (!times) {
@@ -168,6 +206,7 @@ module.exports = async (req, res) => {
 
     const snap = await firestore.collection('subscriptions').get();
     let totalToSend = 0;
+    let skippedByDedupe = 0;
     const sendPromises = [];
     let dueMatches = 0;
     snap.forEach(doc => {
@@ -186,19 +225,54 @@ module.exports = async (req, res) => {
           if (!enabled) continue;
           const notificationText = getPrayerNotificationText(prayer);
           const payload = { title: notificationText.title, body: notificationText.body, tag: prayer };
-          totalToSend++;
-          sendPromises.push(webpush.sendNotification(data.subscription, JSON.stringify(payload)).catch(err => {
-            console.warn('trigger-scheduled: push failed', doc.id, err && err.statusCode);
-          }));
+          const scheduledPushId = makeScheduledPushId(key, doc.id, prayer);
+          const logRef = firestore.collection(SCHEDULED_PUSH_LOG_COLLECTION).doc(scheduledPushId);
+          sendPromises.push((async () => {
+            const claim = await claimScheduledPush(logRef, {
+              dayKey: key,
+              subscriptionId: doc.id,
+              prayer,
+              city,
+              scheduledFor: at,
+              payload
+            });
+
+            if (!claim.claimed) {
+              skippedByDedupe++;
+              logDebug(`trigger-scheduled: skipping duplicate ${scheduledPushId} status=${claim.status}`);
+              return { skipped: true, status: claim.status };
+            }
+
+            totalToSend++;
+            try {
+              await webpush.sendNotification(data.subscription, JSON.stringify(payload));
+              await logRef.set({
+                status: 'sent',
+                sentAt: new Date(),
+                updatedAt: new Date()
+              }, { merge: true });
+              return { sent: true };
+            } catch (err) {
+              console.warn('trigger-scheduled: push failed', doc.id, err && err.statusCode);
+              await logRef.set({
+                status: 'failed',
+                failedAt: new Date(),
+                updatedAt: new Date(),
+                error: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
+                statusCode: err && err.statusCode ? err.statusCode : null
+              }, { merge: true });
+              return { sent: false, error: true };
+            }
+          })());
         }
       }
     });
 
-    console.log('trigger-scheduled: found', snap.size, 'subscriptions, due', dueMatches, 'sending', totalToSend, 'pushes');
+    console.log('trigger-scheduled: found', snap.size, 'subscriptions, due', dueMatches, 'sending', totalToSend, 'pushes', 'skippedByDedupe', skippedByDedupe);
     await Promise.allSettled(sendPromises);
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, sent: totalToSend }));
+    res.end(JSON.stringify({ ok: true, sent: totalToSend, skippedByDedupe }));
   } catch (err) {
     console.error('trigger-scheduled error', err);
     res.statusCode = 500;

@@ -1,4 +1,5 @@
 .vscode/
+.vercel/
 
 # Local secrets and throwaway test files
 vapid-keys.json

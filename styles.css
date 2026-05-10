@@ -430,6 +430,10 @@ small { color: var(--muted); }
   color: var(--fg);
 }
 
+.admin-body.admin-modal-open {
+  overflow: hidden;
+}
+
 .admin-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -663,4 +667,200 @@ small { color: var(--muted); }
 
 .admin-output.empty {
   display: none;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.admin-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.admin-modal-panel {
+  position: relative;
+  width: min(780px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 1.25rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.admin-modal-close {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  line-height: 1;
+  font-size: 1.3rem;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.admin-modal-close:hover {
+  background: var(--highlight);
+}
+
+.admin-modal-form textarea {
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 2.6rem;
+}
+
+.admin-modal-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1);
+}
+
+.admin-form-row.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.admin-audience-group {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: var(--highlight);
+}
+
+.admin-audience-group p {
+  margin: 0 0 0.5rem 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.45rem;
+}
+
+.admin-checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.admin-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+.admin-inline-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.admin-modal-actions {
+  margin-bottom: 0;
+}
+
+.admin-modal-actions #customPushCancel {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.admin-recipient-preview {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.admin-notification-preview {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: var(--highlight);
+}
+
+.admin-preview-label {
+  margin: 0 0 0.45rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-preview-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 0.65rem;
+}
+
+.admin-preview-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.admin-preview-content {
+  min-width: 0;
+}
+
+.admin-preview-content strong {
+  display: block;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.admin-preview-content p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+.admin-preview-content small {
+  color: var(--muted);
+  font-size: 0.78rem;
 }

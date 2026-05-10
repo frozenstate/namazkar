@@ -11,6 +11,8 @@ const CORE_ASSETS = [
   "/icons/mosque.svg",
   "/icons/bell.svg",
   "/icons/bell-slash.svg",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
   "/icons/favicon-round.svg",
   "/icons/apple-touch-icon.svg"
 ];
@@ -40,6 +42,25 @@ function getPrayerNotificationText(prayerKey) {
     title: prayerLabel,
     body: `${prayerLabel} waqt wot`
   };
+}
+
+function normalizeNotificationUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text.startsWith('/')) {
+    try {
+      return new URL(text, self.location.origin).toString();
+    } catch (err) {
+      return '';
+    }
+  }
+  try {
+    const u = new URL(text);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return u.toString();
+  } catch (err) {
+    return '';
+  }
+  return '';
 }
 
 self.addEventListener("install", e => {e.waitUntil(
@@ -138,18 +159,37 @@ self.addEventListener('push', event => {let payload = { title: 'Namaz Kar', body
     // fall back to text
     try { payload = { title: 'Namaz Kar', body: event.data.text() }; } catch (e) {}
   }
+  const clickUrl = normalizeNotificationUrl(payload.url);
+  const icon = normalizeNotificationUrl(payload.icon) || '/icons/favicon-round.svg';
+  const image = normalizeNotificationUrl(payload.image);
+  const badge = normalizeNotificationUrl(payload.badge) || '/icons/icon-192.png';
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
       tag: payload.tag || 'namazkar-push',
       renotify: true,
-      icon: 'icons/mosque.svg'
+      icon,
+      image: image || undefined,
+      badge: badge || undefined,
+      requireInteraction: payload.requireInteraction === true,
+      data: {
+        url: clickUrl || ''
+      }
     })
   );
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const clickUrl = event.notification && event.notification.data && typeof event.notification.data.url === 'string'
+    ? event.notification.data.url.trim()
+    : '';
+
+  if (clickUrl) {
+    event.waitUntil(clients.openWindow(clickUrl));
+    return;
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
       for (const client of windowClients) {

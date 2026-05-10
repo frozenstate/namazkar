@@ -36,8 +36,23 @@
         <div class="admin-buttons">
           <button id="btnList" type="button">Refresh subscriptions</button>
           <button id="btnTrigger" type="button">Trigger scheduled job</button>
-          <button id="btnTest" type="button">Create test subscription</button>
+          <button id="btnLogs" type="button">View scheduled logs</button>
+          <button id="btnTest" type="button">Custom push (all subscribers)</button>
           <button id="btnLogout" type="button">Log out</button>
+        </div>
+        <div class="admin-form-row two-col" style="margin-top: 0.75rem; align-items: end;">
+          <label>
+            Scheduled log filter
+            <select id="scheduledLogFilter">
+              <option value="all">All entries</option>
+              <option value="sent">Sent only</option>
+              <option value="failed">Failed only</option>
+              <option value="sending">In progress only</option>
+            </select>
+          </label>
+          <div class="admin-buttons" style="margin-top: 0;">
+            <button id="btnApplyLogFilter" type="button">Apply filter</button>
+          </div>
         </div>
         <p style="font-size: 0.85rem; color: var(--muted); margin: 1rem 0 0 0;">Subscription data is masked. Only endpoint fingerprint and metadata are shown.</p>
         <div id="out" class="admin-subscriptions"></div>
@@ -72,6 +87,103 @@
         </form>
         <p id="calendarStatus" class="admin-status" style="margin-top: 1rem;">Loading calendar settings...</p>
       </div>
+    </div>
+  </div>
+
+  <div id="customPushModal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="customPushTitle">
+    <div class="admin-modal-backdrop" data-close-modal="true"></div>
+    <div class="admin-modal-panel">
+      <div class="admin-modal-header">
+        <h2 id="customPushTitle">Custom push</h2>
+        <button id="customPushClose" type="button" class="admin-modal-close" aria-label="Close custom push dialog">×</button>
+      </div>
+
+      <form id="customPushForm" class="admin-form admin-modal-form">
+        <div class="admin-form-row two-col">
+          <label>
+            Title
+            <input id="pushTitle" type="text" maxlength="100" placeholder="Namaz Kar" required />
+          </label>
+          <label>
+            Tag (optional)
+            <input id="pushTag" type="text" maxlength="80" placeholder="event-friday" />
+          </label>
+        </div>
+
+        <label>
+          Body
+          <textarea id="pushBody" rows="3" maxlength="300" placeholder="Important update..." required></textarea>
+        </label>
+
+        <div class="admin-form-row two-col">
+          <label>
+            Click URL (optional)
+            <input id="pushUrl" type="text" placeholder="https://example.com or /events/friday" />
+          </label>
+          <label>
+            Image URL (optional)
+            <input id="pushImage" type="text" placeholder="https://example.com/image.png" />
+          </label>
+        </div>
+
+        <div class="admin-form-row two-col">
+          <label>
+            Icon URL (optional)
+            <input id="pushIcon" type="text" placeholder="https://example.com/icon.png" />
+          </label>
+          <label>
+            Badge URL (optional)
+            <input id="pushBadge" type="text" placeholder="https://example.com/badge.png" />
+          </label>
+        </div>
+
+        <label>
+          Audience
+          <select id="pushAudience" required>
+            <option value="all">All subscribers</option>
+            <option value="cities">Specific cities</option>
+            <option value="subscriptionIds">Specific subscription IDs</option>
+          </select>
+        </label>
+
+        <div id="pushCityAudience" class="admin-audience-group hidden">
+          <p>Select one or more cities.</p>
+          <div id="pushCityOptions" class="admin-checkbox-grid"></div>
+        </div>
+
+        <div id="pushSubscriptionAudience" class="admin-audience-group hidden">
+          <label>
+            Subscription IDs (comma, space, or newline separated)
+            <textarea id="pushSubscriptionIds" rows="3" placeholder="sub-id-1, sub-id-2"></textarea>
+          </label>
+        </div>
+
+        <label class="admin-inline-check">
+          <input id="pushRequireInteraction" type="checkbox" />
+          Keep notification visible until user interacts
+        </label>
+
+        <p id="pushRecipientPreview" class="admin-recipient-preview">Recipients: all subscribers</p>
+
+        <div class="admin-notification-preview" aria-live="polite">
+          <p class="admin-preview-label">Notification preview</p>
+          <div class="admin-preview-card">
+            <img id="pushPreviewIcon" class="admin-preview-icon" src="icons/favicon-round.svg" alt="Notification icon preview" />
+            <div class="admin-preview-content">
+              <strong id="pushPreviewTitle">Namaz Kar</strong>
+              <p id="pushPreviewBody">Important update</p>
+              <small id="pushPreviewMeta">Tap opens app home</small>
+            </div>
+          </div>
+        </div>
+
+        <p id="customPushStatus" class="admin-status">Compose your message and choose the audience.</p>
+
+        <div class="admin-buttons admin-modal-actions">
+          <button id="customPushCancel" type="button">Cancel</button>
+          <button id="customPushSend" type="submit">Send custom push</button>
+        </div>
+      </form>
     </div>
   </div>
   <script src="admin.js"></script>
