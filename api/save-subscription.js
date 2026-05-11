@@ -24,6 +24,12 @@ module.exports = async (req, res) => {
       return res.status(400).end('Invalid subscription.keys structure');
     }
     
+    console.log('[save-subscription] received valid subscription:', { 
+      endpoint: subscription.endpoint?.slice(-30),
+      keyTypes: { p256dh: typeof subscription.keys.p256dh, auth: typeof subscription.keys.auth },
+      keySizes: { p256dh: subscription.keys.p256dh?.length, auth: subscription.keys.auth?.length }
+    });
+    
     const docId = idFromEndpoint(subscription.endpoint);
     const docRef = firestore.collection('subscriptions').doc(docId);
     const now = new Date().toISOString();

@@ -205,6 +205,12 @@ module.exports = async (req, res) => {
           console.warn(`send-push: subscription ${record.id} has invalid keys:`, sub.keys);
         } else if (typeof sub.keys.p256dh !== 'string' || typeof sub.keys.auth !== 'string') {
           console.warn(`send-push: subscription ${record.id} keys not strings:`, { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth });
+        } else {
+          console.log(`send-push: subscription ${record.id} structure OK`, { 
+            endpoint: sub.endpoint?.slice(-30),
+            keyTypes: { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth },
+            keySizes: { p256dh: sub.keys.p256dh?.length, auth: sub.keys.auth?.length }
+          });
         }
         tasks.push({ id: record.id, docRef: doc.ref, promise: sendToSubscription(record.subscription, payload) });
       }

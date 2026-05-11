@@ -929,7 +929,17 @@ async function updateServerSubscription() {
   if (!reg) return;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
-  const payload = { subscription: sub, city: selectedCity, enabledPrayers };// Try update first, then save if not exists
+  const payload = { subscription: sub, city: selectedCity, enabledPrayers };
+  
+  // Log what we're sending
+  console.log('[updateServerSubscription] sending to server:', {
+    endpoint: sub.endpoint?.slice(-30),
+    hasKeys: !!sub.keys,
+    keyTypes: sub.keys ? { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth } : null,
+    city: selectedCity,
+    enabledPrayersCount: Object.keys(enabledPrayers).length
+  });
+  
   try {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!r.ok) {
@@ -987,6 +997,8 @@ async function restoreSubscriptionSettings() {
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ subscription: sub })
     });
+    
+    console.log('[restoreSubscriptionSettings] called with subscription ending:', sub.endpoint?.slice(-20));
     
     if (!r.ok) {
       // Server fetch failed, try local backup
