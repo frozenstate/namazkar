@@ -230,10 +230,19 @@ self.addEventListener('pushsubscriptionchange', event => {
           applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
         });
 
+        // Explicitly serialize PushSubscription to ensure keys are included
+        const serializedSub = {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))) : null,
+            auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))) : null
+          }
+        };
+
         await fetch('/api/update-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription })
+          body: JSON.stringify({ subscription: serializedSub })
         });
 
         // Notify any open clients to refresh their local state.

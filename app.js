@@ -929,13 +929,23 @@ async function updateServerSubscription() {
   if (!reg) return;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
-  const payload = { subscription: sub, city: selectedCity, enabledPrayers };
+  
+  // Explicitly serialize PushSubscription to ensure keys are included
+  const serializedSub = {
+    endpoint: sub.endpoint,
+    keys: {
+      p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
+      auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
+    }
+  };
+  
+  const payload = { subscription: serializedSub, city: selectedCity, enabledPrayers };
   
   // Log what we're sending
   console.log('[updateServerSubscription] sending to server:', {
-    endpoint: sub.endpoint?.slice(-30),
-    hasKeys: !!sub.keys,
-    keyTypes: sub.keys ? { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth } : null,
+    endpoint: serializedSub.endpoint?.slice(-30),
+    hasKeys: !!serializedSub.keys,
+    keyTypes: serializedSub.keys ? { p256dh: typeof serializedSub.keys.p256dh, auth: typeof serializedSub.keys.auth } : null,
     city: selectedCity,
     enabledPrayersCount: Object.keys(enabledPrayers).length
   });
