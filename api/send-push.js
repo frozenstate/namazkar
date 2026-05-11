@@ -196,6 +196,16 @@ module.exports = async (req, res) => {
         subscription: data ? data.subscription : null
       };
       if (record.subscription && isTargetMatch(normalizedTarget, record)) {
+        // Log the subscription structure for debugging
+        const sub = record.subscription;
+        if (sub.endpoint && typeof sub.endpoint !== 'string') {
+          console.warn(`send-push: subscription ${record.id} has non-string endpoint:`, typeof sub.endpoint, sub.endpoint);
+        }
+        if (!sub.keys || typeof sub.keys !== 'object') {
+          console.warn(`send-push: subscription ${record.id} has invalid keys:`, sub.keys);
+        } else if (typeof sub.keys.p256dh !== 'string' || typeof sub.keys.auth !== 'string') {
+          console.warn(`send-push: subscription ${record.id} keys not strings:`, { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth });
+        }
         tasks.push({ id: record.id, docRef: doc.ref, promise: sendToSubscription(record.subscription, payload) });
       }
     });

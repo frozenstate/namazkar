@@ -17,6 +17,13 @@ module.exports = async (req, res) => {
       req.on('error', reject);
     });    const { subscription, city, enabledPrayers } = body;
     if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
+    
+    // Validate subscription structure
+    if (!subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+      console.error('save-subscription: invalid subscription structure', { endpoint: !!subscription.endpoint, keys: !!subscription.keys, p256dh: !!subscription.keys?.p256dh, auth: !!subscription.keys?.auth });
+      return res.status(400).end('Invalid subscription.keys structure');
+    }
+    
     const docId = idFromEndpoint(subscription.endpoint);
     const docRef = firestore.collection('subscriptions').doc(docId);
     const now = new Date().toISOString();

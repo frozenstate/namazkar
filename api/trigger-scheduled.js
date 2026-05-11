@@ -316,6 +316,11 @@ module.exports = async (req, res) => {
 
             totalToSend++;
             try {
+              // Validate subscription structure before sending
+              const sub = data.subscription;
+              if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
+                throw new Error(`Invalid subscription structure: ${JSON.stringify({ endpoint: typeof sub?.endpoint, keys: typeof sub?.keys, p256dh: typeof sub?.keys?.p256dh, auth: typeof sub?.keys?.auth })}`);
+              }
               await webpush.sendNotification(data.subscription, JSON.stringify(payload));
               await logRef.set({
                 status: 'sent',
