@@ -1,4 +1,4 @@
-const { firestore } = require('./_firebase');
+const { firestore, admin } = require('./_firebase');
 const { requireAdminAuth, isAdminAuthenticated } = require('./_adminAuth');
 const webpush = require('web-push');
 
@@ -96,6 +96,40 @@ function parseTimeToDate(timeStr, cityOffsetMin = 0, baseDate = new Date(), tabl
   return new Date(utcMs);
 }
 
+async function recordSubscriptionFailure(docId, err) {
+  if (!firestore || !docId) return false;
+  const docRef = firestore.collection('subscriptions').doc(String(docId));
+  const now = new Date();
+  const msg = String((err && err.message) || err || 'Unknown error').slice(0, 1000);
+  const increment = admin && admin.firestore && admin.firestore.FieldValue && typeof admin.firestore.FieldValue.increment === 'function'
+    ? admin.firestore.FieldValue.increment(1)
+    : 1;
+  await docRef.set({
+    badAttemptCount: increment,
+    lastFailedAt: now,
+    lastFailureMsg: msg,
+    lastFailureStatusCode: getPushErrorStatusCode(err) || null,
+    updatedAt: now
+  }, { merge: true });
+
+  // Re-read doc to decide whether to mark invalid after threshold
+  const snap = await docRef.get();
+  const data = snap.exists ? snap.data() : {};
+  const count = Number(data.badAttemptCount || 0);
+  const threshold = 2; // require 2 failures before marking invalid
+  if (count >= threshold) {
+    await docRef.set({
+      status: 'invalid',
+      invalidAt: now,
+      invalidReason: 'push_410_retries',
+      invalidError: msg,
+      invalidStatusCode: getPushErrorStatusCode(err) || null,
+      updatedAt: now
+    }, { merge: true });
+  }
+  return true;
+}
+
 const PRAYER_LABELS = {
   Fajr: 'Subah',
   Sunrise: 'Zawaal',
@@ -117,18 +151,6 @@ function getPrayerNotificationText(prayerKey) {
   };
 }
 
-function logDebug(message, ...args) {
-  if (DEBUG_TRIGGER_SCHEDULED) {
-    console.log(message, ...args);
-  }
-}
-
-function makeScheduledPushId(dayKey, subscriptionId, prayer) {
-  return [dayKey, subscriptionId, prayer]
-    .map(part => String(part || '').trim().replace(/[^A-Za-z0-9._:-]/g, '_'))
-    .join('__');
-}
-
 function getPushErrorStatusCode(err) {
   if (!err) return null;
   if (typeof err.statusCode === 'number') return err.statusCode;
@@ -136,16 +158,38 @@ function getPushErrorStatusCode(err) {
   return null;
 }
 
+async function logSubscriptionInvalidation(docId, failureCount, err, prevData) {
+  if (!firestore) return;
+  try {
+    await firestore.collection('subscription_invalidation_logs').add({
+      subscriptionId: String(docId),
+      failureCount: failureCount || 1,
+      reason: 'push_410_retries',
+      lastFailureMsg: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
+      statusCode: getPushErrorStatusCode(err) || null,
+      invalidatedAt: new Date(),
+      previousCity: (prevData && prevData.city) || null,
+      previousStatus: (prevData && prevData.status) || 'active',
+      source: 'trigger-scheduled'
+    });
+  } catch (logErr) {
+    console.error('Failed to log invalidation:', logErr && logErr.message);
+  }
+}
+
 async function markSubscriptionInvalid(docId, err) {
   if (!firestore || !docId) return;
+  const now = new Date().toISOString();
+  const prevData = await firestore.collection('subscriptions').doc(String(docId)).get().then(s => s.exists ? s.data() : null);
   await firestore.collection('subscriptions').doc(String(docId)).set({
     status: 'invalid',
-    invalidAt: new Date().toISOString(),
+    invalidAt: now,
     invalidReason: 'push_gone',
     invalidError: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
     invalidStatusCode: getPushErrorStatusCode(err) || null,
-    updatedAt: new Date().toISOString()
+    updatedAt: now
   }, { merge: true });
+  await logSubscriptionInvalidation(docId, 1, err, prevData);
 }
 
 async function claimScheduledPush(docRef, claimData) {
@@ -275,7 +319,14 @@ module.exports = async (req, res) => {
               const statusCode = getPushErrorStatusCode(err);
               console.warn('trigger-scheduled: push failed', doc.id, statusCode);
               if (statusCode === 410) {
-                await markSubscriptionInvalid(doc.id, err);
+                // Use recordSubscriptionFailure to enforce threshold before invalidating
+                await recordSubscriptionFailure(doc.id, err);
+                // Check if it's now invalid after reaching threshold
+                const docSnap = await firestore.collection('subscriptions').doc(String(doc.id)).get();
+                const docData = docSnap.exists ? docSnap.data() : {};
+                if (String(docData.status || '') === 'invalid') {
+                  await logSubscriptionInvalidation(doc.id, Number(docData.badAttemptCount || 1), err, docData);
+                }
               }
               await logRef.set({
                 status: 'failed',

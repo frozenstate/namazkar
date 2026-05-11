@@ -775,7 +775,7 @@ async function ensurePushSubscription() {
 navigator.serviceWorker && navigator.serviceWorker.addEventListener && navigator.serviceWorker.addEventListener('message', e => {
   if (e.data && e.data.type === 'PUSH_SUBSCRIPTION_CHANGED') {
     // attempt to re-subscribe when client receives this message
-    ensurePushSubscription().catch(() => {});
+    ensurePushSubscription().then(() => updateServerSubscription().catch(() => {})).catch(() => {});
   }
 });
 
@@ -857,7 +857,11 @@ setInterval(() => {
 }, 1_000);
 
 
-loadData();
+loadData().then(() => {
+  if (Notification.permission === 'granted') {
+    ensurePushSubscription().then(() => updateServerSubscription().catch(() => {})).catch(() => {});
+  }
+}).catch(() => {});
 
 timesDiv.addEventListener("click", async (e) => {
   const btn = e.target.closest(".prayer-notify");
@@ -895,9 +899,43 @@ async function updateServerSubscription() {
   const payload = { subscription: sub, city: selectedCity, enabledPrayers };// Try update first, then save if not exists
   try {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!r.ok) {// fallback to save
+    if (!r.ok) {
+      // If update failed (maybe subscription doc doesn't exist), try save-subscription
       const s = await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!s.ok) {}
+      if (!s.ok) {
+        return;
+      }
+      return;
+    }
+
+    const data = await r.json();
+    // If server reported the previous doc as invalid, force a fresh subscription and save it
+    if (data && data.wasInvalid) {
+      try {
+        const newSub = await ensurePushSubscription();
+        if (newSub) {
+          await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: newSub, city: selectedCity, enabledPrayers }) });
+        }
+      } catch (err) {}
+    }
+
+    // If server has stored metadata, restore it locally to keep UI consistent
+    if (data && data.data) {
+      try {
+        const server = data.data;
+        if (server.city && server.city !== selectedCity && cities && cities.cities && cities.cities[server.city]) {
+          selectedCity = server.city;
+          localStorage.setItem('city', selectedCity);
+          updateSelectedCityPlaceholder();
+          renderTimes();
+        }
+        if (server.enabledPrayers && typeof server.enabledPrayers === 'object') {
+          enabledPrayers = server.enabledPrayers;
+          saveEnabledPrayers();
+          updateRowBellStates();
+          scheduleNotifications();
+        }
+      } catch (err) {}
     }
   } catch (err) {}
 }

@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const { firestore } = require('./_firebase');
+const { firestore, admin } = require('./_firebase');
 const { requireAdminAuth } = require('./_adminAuth');
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
@@ -95,17 +95,52 @@ function isGoneError(err) {
   return getPushErrorStatusCode(err) === 410;
 }
 
-async function markSubscriptionInvalid(docId, err) {
+async function recordSubscriptionFailure(docId, err) {
   if (!firestore || !docId) return false;
   const docRef = firestore.collection('subscriptions').doc(String(docId));
+  const now = new Date();
+  const msg = String((err && err.message) || err || 'Unknown error').slice(0, 1000);
+  const increment = admin && admin.firestore && admin.firestore.FieldValue && typeof admin.firestore.FieldValue.increment === 'function'
+    ? admin.firestore.FieldValue.increment(1)
+    : 1;
   await docRef.set({
-    status: 'invalid',
-    invalidAt: new Date().toISOString(),
-    invalidReason: 'push_gone',
-    invalidError: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
-    invalidStatusCode: getPushErrorStatusCode(err) || null,
-    updatedAt: new Date().toISOString()
+    badAttemptCount: increment,
+    lastFailedAt: now,
+    lastFailureMsg: msg,
+    lastFailureStatusCode: getPushErrorStatusCode(err) || null,
+    updatedAt: now
   }, { merge: true });
+
+  // Re-read doc to decide whether to mark invalid after threshold
+  const snap = await docRef.get();
+  const data = snap.exists ? snap.data() : {};
+  const count = Number(data.badAttemptCount || 0);
+  const threshold = 2; // require 2 failures before marking invalid
+  if (count >= threshold) {
+    await docRef.set({
+      status: 'invalid',
+      invalidAt: now,
+      invalidReason: 'push_410_retries',
+      invalidError: msg,
+      invalidStatusCode: getPushErrorStatusCode(err) || null,
+      updatedAt: now
+    }, { merge: true });
+    // Log the invalidation
+    try {
+      await firestore.collection('subscription_invalidation_logs').add({
+        subscriptionId: String(docId),
+        failureCount: count,
+        reason: 'push_410_retries',
+        lastFailureMsg: msg,
+        statusCode: getPushErrorStatusCode(err) || null,
+        invalidatedAt: now,
+        previousCity: data.city || null,
+        previousStatus: data.status || 'active'
+      });
+    } catch (logErr) {
+      console.error('Failed to log invalidation:', logErr && logErr.message);
+    }
+  }
   return true;
 }
 
@@ -128,23 +163,20 @@ module.exports = async (req, res) => {
         await sendToSubscription(subscription, payload);
       } catch (err) {
         if (isGoneError(err)) {
-          await markSubscriptionInvalid(
-            String(subscription && subscription.endpoint ? Buffer.from(subscription.endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_') : ''),
-            err
-          );
+          const docId = String(subscription && subscription.endpoint ? Buffer.from(subscription.endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_') : '');
+          await recordSubscriptionFailure(docId, err);
+          const snap = await firestore.collection('subscriptions').doc(docId).get();
+          const isInvalid = snap.exists && String((snap.data() || {}).status || '') === 'invalid';
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ ok: true, sent: 1, matched: 1, failed: 1, invalidated: isInvalid ? 1 : 0, failedDetails: [{ id: docId, error: String(err && err.message || err) }] }));
+          return;
         }
         throw err;
       }
       res.setHeader('Content-Type', 'application/json');
       res.statusCode = 200;
-      res.end(JSON.stringify({
-        ok: true,
-        sent: 1,
-        matched: 1,
-        failed: 0,
-        invalidated: 0,
-        failedDetails: []
-      }));
+      res.end(JSON.stringify({ ok: true, sent: 1, matched: 1, failed: 0, invalidated: 0, failedDetails: [] }));
       return;
     }
 
@@ -184,7 +216,19 @@ module.exports = async (req, res) => {
     }
 
     if (invalidated.length) {
-      await Promise.allSettled(invalidated.map(item => markSubscriptionInvalid(item.id, { message: item.reason, statusCode: item.statusCode })));
+      await Promise.allSettled(invalidated.map(item => recordSubscriptionFailure(item.id, { message: item.reason, statusCode: item.statusCode })));
+      // Re-check which ones are now invalid
+      const invalidNow = [];
+      await Promise.all(invalidated.map(async item => {
+        try {
+          const snap = await firestore.collection('subscriptions').doc(String(item.id)).get();
+          const d = snap.exists ? snap.data() : null;
+          if (d && String(d.status || '') === 'invalid') invalidNow.push({ id: item.id, reason: item.reason, statusCode: item.statusCode });
+        } catch (e) {}
+      }));
+      // replace invalidated array with those now invalid
+      invalidated.length = 0;
+      for (const it of invalidNow) invalidated.push(it);
     }
 
     res.setHeader('Content-Type', 'application/json');

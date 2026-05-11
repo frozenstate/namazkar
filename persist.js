@@ -216,13 +216,27 @@ self.addEventListener('notificationclick', event => {
 
 // Optional: handle subscription change (e.g., when push service rotates keys)
 self.addEventListener('pushsubscriptionchange', event => {
-  // Best-effort: try to resubscribe and notify the server via postMessage
+  // Best-effort: try to resubscribe in the worker so the server gets the new endpoint even if the page is closed.
   event.waitUntil(
     (async () => {
       try {
-        const sw = self.registration;
-        // Can't access applicationServerKey here; let the client re-subscribe when it regains control
-        // Notify all clients so they can re-subscribe
+        const keyResponse = await fetch('/api/vapidPublicKey');
+        if (!keyResponse.ok) return;
+        const keyData = await keyResponse.json();
+        if (!keyData || !keyData.publicKey) return;
+
+        const subscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+        });
+
+        await fetch('/api/update-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription })
+        });
+
+        // Notify any open clients to refresh their local state.
         const all = await clients.matchAll({ includeUncontrolled: true });
         for (const c of all) {
           c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' });
@@ -233,3 +247,14 @@ self.addEventListener('pushsubscriptionchange', event => {
     })()
   );
 });
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
