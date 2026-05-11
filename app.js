@@ -180,44 +180,95 @@ function toggleCalendarMode() {
   updateDayContext();
 }
 
-async function loadData() {
-  loadEnabledPrayers();
+function isValidTimetableData(data) {
+  return !!(data && typeof data === "object" && data.days && typeof data.days === "object");
+}
+
+function isValidOffsetData(data) {
+  return !!(data && typeof data === "object" && data.cities && typeof data.cities === "object");
+}
+
+async function readCachedJson(path) {
+  if (!("caches" in window)) return null;
   try {
-    timetable = await fetch("data/table.json").then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}: Failed to load table.json`);
-      return r.json();
-    });
-
-    if (!timetable || !timetable.days) {
-      throw new Error("Invalid table.json structure: missing days");
-    }
-
-    cities = await fetch("data/offset.json").then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}: Failed to load offset.json`);
-      return r.json();
-    });
-
-    if (!cities || !cities.cities) {
-      throw new Error("Invalid offset.json structure: missing cities");
-    }
+    const response = await caches.match(path);
+    if (!response) return null;
+    return await response.json();
   } catch (err) {
-    console.error("Error loading data:", err);
-    showToast(`Error: ${err.message}. Retrying...`, 4000);
-    setTimeout(loadData, 3000);
-    return;
+    return null;
   }
+}
 
-  selectedCity =
-    localStorage.getItem("city") || (cities?.base_city || Object.keys(cities.cities)[0]);
-  if (!cities.cities[selectedCity]) {
-    selectedCity = cities.base_city || Object.keys(cities.cities)[0];
-  }
+async function fetchJson(path, errorLabel) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to load ${errorLabel}`);
+  return response.json();
+}
 
-  await loadCalendarSettings();
+function resolveSelectedCity(data) {
+  const fallbackCity = data.base_city || Object.keys(data.cities)[0];
+  const storedCity = localStorage.getItem("city") || fallbackCity;
+  return data.cities[storedCity] ? storedCity : fallbackCity;
+}
+
+function applyLoadedData(nextTimetable, nextCities, sourceLabel = "") {
+  timetable = nextTimetable;
+  cities = nextCities;
+  selectedCity = resolveSelectedCity(cities);
   initTheme();
   populateCities();
   renderTimes();
   updateDayContext();
+  if (sourceLabel) {
+    console.log(`Prayer data loaded from ${sourceLabel}`);
+  }
+}
+
+async function loadData() {
+  loadEnabledPrayers();
+
+  const [cachedTimetable, cachedCities] = await Promise.all([
+    readCachedJson("/data/table.json"),
+    readCachedJson("/data/offset.json")
+  ]);
+
+  const hasCachedData = isValidTimetableData(cachedTimetable) && isValidOffsetData(cachedCities);
+  if (hasCachedData) {
+    applyLoadedData(cachedTimetable, cachedCities, "cache");
+    loadCalendarSettings().then(() => updateDayContext()).catch(() => {});
+  }
+
+  try {
+    const [nextTimetable, nextCities] = await Promise.all([
+      fetchJson("data/table.json", "table.json"),
+      fetchJson("data/offset.json", "offset.json")
+    ]);
+
+    if (!isValidTimetableData(nextTimetable)) {
+      throw new Error("Invalid table.json structure: missing days");
+    }
+    if (!isValidOffsetData(nextCities)) {
+      throw new Error("Invalid offset.json structure: missing cities");
+    }
+
+    const shouldReplace = !hasCachedData || nextTimetable !== timetable || nextCities !== cities;
+    if (shouldReplace) {
+      applyLoadedData(nextTimetable, nextCities, hasCachedData ? "network refresh" : "network");
+    }
+
+    if (!hasCachedData) {
+      await loadCalendarSettings();
+      updateDayContext();
+    }
+  } catch (err) {
+    if (!hasCachedData) {
+      console.error("Error loading data:", err);
+      showToast(`Error: ${err.message}. Retrying...`, 4000);
+      setTimeout(loadData, 3000);
+      return;
+    }
+    console.warn("Background data refresh failed:", err);
+  }
 }
 
 function populateCities() {

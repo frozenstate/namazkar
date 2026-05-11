@@ -84,6 +84,31 @@ async function sendToSubscription(subscription, payload) {
   return webpush.sendNotification(subscription, JSON.stringify(sanitizePayload(payload)));
 }
 
+function getPushErrorStatusCode(err) {
+  if (!err) return null;
+  if (typeof err.statusCode === 'number') return err.statusCode;
+  if (err.status && typeof err.status.code === 'number') return err.status.code;
+  return null;
+}
+
+function isGoneError(err) {
+  return getPushErrorStatusCode(err) === 410;
+}
+
+async function markSubscriptionInvalid(docId, err) {
+  if (!firestore || !docId) return false;
+  const docRef = firestore.collection('subscriptions').doc(String(docId));
+  await docRef.set({
+    status: 'invalid',
+    invalidAt: new Date().toISOString(),
+    invalidReason: 'push_gone',
+    invalidError: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
+    invalidStatusCode: getPushErrorStatusCode(err) || null,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+  return true;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
   if (!requireAdminAuth(req, res)) return;
@@ -119,7 +144,7 @@ module.exports = async (req, res) => {
         subscription: data ? data.subscription : null
       };
       if (record.subscription && isTargetMatch(normalizedTarget, record)) {
-        tasks.push({ id: record.id, promise: sendToSubscription(record.subscription, payload) });
+        tasks.push({ id: record.id, docRef: doc.ref, promise: sendToSubscription(record.subscription, payload) });
       }
     });
 
@@ -127,20 +152,42 @@ module.exports = async (req, res) => {
     const sent = settled.filter(item => item.status === 'fulfilled').length;
     const matched = tasks.length;
     const failedDetails = [];
+    const invalidated = [];
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
       if (r.status === 'rejected') {
         const id = tasks[i] && tasks[i].id ? String(tasks[i].id) : `index-${i}`;
         const reason = r.reason && r.reason.message ? r.reason.message : String(r.reason || 'Unknown error');
+        const statusCode = getPushErrorStatusCode(r.reason);
+        if (statusCode === 410 && tasks[i] && tasks[i].id) {
+          invalidated.push({ id: tasks[i].id, reason, statusCode });
+        }
         failedDetails.push({ id, error: reason.slice(0, 1000) });
       }
     }
 
+    if (invalidated.length) {
+      await Promise.allSettled(invalidated.map(item => markSubscriptionInvalid(item.id, { message: item.reason, statusCode: item.statusCode })));
+    }
+
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, sent, matched, failed: failedDetails.length, failedDetails }));
+    res.end(JSON.stringify({
+      ok: true,
+      sent,
+      matched,
+      failed: failedDetails.length,
+      invalidated: invalidated.length,
+      failedDetails
+    }));
   } catch (err) {
     console.error('send-push failed', err);
+    const statusCode = getPushErrorStatusCode(err);
+    if (statusCode === 410) {
+      res.statusCode = 410;
+      res.end('Push subscription is no longer valid');
+      return;
+    }
     res.statusCode = 500;
     res.end('Failed to send push');
   }

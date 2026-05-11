@@ -129,6 +129,25 @@ function makeScheduledPushId(dayKey, subscriptionId, prayer) {
     .join('__');
 }
 
+function getPushErrorStatusCode(err) {
+  if (!err) return null;
+  if (typeof err.statusCode === 'number') return err.statusCode;
+  if (err.status && typeof err.status.code === 'number') return err.status.code;
+  return null;
+}
+
+async function markSubscriptionInvalid(docId, err) {
+  if (!firestore || !docId) return;
+  await firestore.collection('subscriptions').doc(String(docId)).set({
+    status: 'invalid',
+    invalidAt: new Date().toISOString(),
+    invalidReason: 'push_gone',
+    invalidError: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
+    invalidStatusCode: getPushErrorStatusCode(err) || null,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+
 async function claimScheduledPush(docRef, claimData) {
   return firestore.runTransaction(async tx => {
     const existing = await tx.get(docRef);
@@ -253,13 +272,17 @@ module.exports = async (req, res) => {
               }, { merge: true });
               return { sent: true };
             } catch (err) {
-              console.warn('trigger-scheduled: push failed', doc.id, err && err.statusCode);
+              const statusCode = getPushErrorStatusCode(err);
+              console.warn('trigger-scheduled: push failed', doc.id, statusCode);
+              if (statusCode === 410) {
+                await markSubscriptionInvalid(doc.id, err);
+              }
               await logRef.set({
                 status: 'failed',
                 failedAt: new Date(),
                 updatedAt: new Date(),
                 error: String((err && err.message) || err || 'Unknown error').slice(0, 1000),
-                statusCode: err && err.statusCode ? err.statusCode : null
+                statusCode
               }, { merge: true });
               return { sent: false, error: true };
             }

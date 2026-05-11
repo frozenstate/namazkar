@@ -113,15 +113,28 @@ self.addEventListener("fetch", e => {
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
 
+async function readCachedJson(path) {
+  const response = await caches.match(path);
+  if (!response) return null;
+  try {
+    return await response.json();
+  } catch (err) {
+    return null;
+  }
+}
+
 self.addEventListener("message", async e => {
   if (e.data.type !== "SCHEDULE") return;
 
   const [table, offsetData] = await Promise.all([
-    fetch("/data/table.json").then(r => r.json()),
-    fetch("/data/offset.json").then(r => r.json())
+    readCachedJson("/data/table.json"),
+    readCachedJson("/data/offset.json")
   ]);
 
-  const offset = offsetData.cities[e.data.city].offset;
+  if (!table || !table.days || !offsetData || !offsetData.cities) return;
+
+  const city = e.data.city && offsetData.cities[e.data.city] ? e.data.city : (offsetData.base_city || Object.keys(offsetData.cities)[0]);
+  const offset = (offsetData.cities[city] && offsetData.cities[city].offset) || 0;
 
   const now = new Date();
   const key =
@@ -129,6 +142,7 @@ self.addEventListener("message", async e => {
     String(now.getMonth() + 1).padStart(2, "0");
 
   const times = table.days[key];
+  if (!times) return;
   const enabled = e.data.enabledPrayers || {};
 
 

@@ -639,6 +639,32 @@ document.getElementById('btnList').onclick = listSubscriptions;
 
 document.getElementById('btnLogs').onclick = showScheduledPushLogs;
 
+document.getElementById('btnCleanupSubscriptions').onclick = async () => {
+  out.innerHTML = 'Cleaning up invalid subscriptions...';
+  try {
+    const res = await authedFetch('/api/cleanup-subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maxAgeDays: 30 })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    out.innerHTML = '';
+    const p = document.createElement('p');
+    p.style.margin = '0 0 1rem 0';
+    p.style.color = 'var(--muted)';
+    p.textContent = `Cleanup complete. Scanned ${data.scanned} subscriptions, deleted ${data.deleted}.`;
+    out.appendChild(p);
+    await listSubscriptions();
+  } catch (err) {
+    out.innerText = 'Error: ' + err.message;
+    if (String(err.message || '').includes('Unauthorized')) {
+      setLoggedIn(false);
+      loginStatus.textContent = 'Session expired. Please log in again.';
+    }
+  }
+};
+
 document.getElementById('btnApplyLogFilter').onclick = () => {
   renderScheduledLogs(filterScheduledLogs(scheduledPushLogsCache, scheduledLogFilter ? scheduledLogFilter.value : 'all'));
 };
