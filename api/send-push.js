@@ -124,10 +124,27 @@ module.exports = async (req, res) => {
     const { subscription, payload, target } = body;
 
     if (subscription) {
-      await sendToSubscription(subscription, payload);
+      try {
+        await sendToSubscription(subscription, payload);
+      } catch (err) {
+        if (isGoneError(err)) {
+          await markSubscriptionInvalid(
+            String(subscription && subscription.endpoint ? Buffer.from(subscription.endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_') : ''),
+            err
+          );
+        }
+        throw err;
+      }
       res.setHeader('Content-Type', 'application/json');
       res.statusCode = 200;
-      res.end(JSON.stringify({ ok: true }));
+      res.end(JSON.stringify({
+        ok: true,
+        sent: 1,
+        matched: 1,
+        failed: 0,
+        invalidated: 0,
+        failedDetails: []
+      }));
       return;
     }
 
