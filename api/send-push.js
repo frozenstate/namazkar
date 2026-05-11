@@ -81,6 +81,9 @@ function isTargetMatch(target, record) {
 }
 
 async function sendToSubscription(subscription, payload) {
+  if (!subscription || !subscription.endpoint) {
+    throw new Error('Invalid subscription: missing endpoint');
+  }
   return webpush.sendNotification(subscription, JSON.stringify(sanitizePayload(payload)));
 }
 
@@ -208,6 +211,7 @@ module.exports = async (req, res) => {
         const id = tasks[i] && tasks[i].id ? String(tasks[i].id) : `index-${i}`;
         const reason = r.reason && r.reason.message ? r.reason.message : String(r.reason || 'Unknown error');
         const statusCode = getPushErrorStatusCode(r.reason);
+        console.log(`send-push: broadcast failed for subscription ${id}:`, { statusCode, reason, endpoint: tasks[i].subscription?.endpoint?.slice(-20) });
         if (statusCode === 410 && tasks[i] && tasks[i].id) {
           invalidated.push({ id: tasks[i].id, reason, statusCode });
         }

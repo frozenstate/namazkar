@@ -91,6 +91,32 @@ function saveEnabledPrayers() {
   localStorage.setItem("prayerNotifications", JSON.stringify(enabledPrayers));
 }
 
+function saveSubscriptionBackup() {
+  // Save a backup of current settings for endpoint rotation recovery
+  try {
+    localStorage.setItem('subscriptionBackup', JSON.stringify({
+      city: selectedCity,
+      enabledPrayers: enabledPrayers,
+      timestamp: Date.now()
+    }));
+  } catch (err) {}
+}
+
+function loadSubscriptionBackup() {
+  try {
+    const backup = localStorage.getItem('subscriptionBackup');
+    if (!backup) return null;
+    const data = JSON.parse(backup);
+    // Only use backup if it's less than 30 days old
+    if (Date.now() - data.timestamp < 30 * 24 * 60 * 60 * 1000) {
+      return data;
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
 function saveCalendarMode() {
   localStorage.setItem(CALENDAR_MODE_KEY, calendarMode);
 }
@@ -363,9 +389,11 @@ function selectCity(city) {
 
   selectedCity = city;
   localStorage.setItem("city", selectedCity);
+  saveSubscriptionBackup();
   updateSelectedCityPlaceholder();
   renderTimes();
   scheduleNotifications();
+  updateServerSubscription().catch(() => {});
   renderCityResults("", false);
   if (citySearch) {
     citySearch.value = "";
@@ -887,6 +915,7 @@ timesDiv.addEventListener("click", async (e) => {
 
   enabledPrayers[prayer] = !enabledPrayers[prayer];
   saveEnabledPrayers();
+  saveSubscriptionBackup();
   updateRowBellStates();
   scheduleNotifications();
   // send updated enabledPrayers to server for this subscription
@@ -959,38 +988,65 @@ async function restoreSubscriptionSettings() {
       body: JSON.stringify({ subscription: sub })
     });
     
-    if (!r.ok) return;
+    if (!r.ok) {
+      // Server fetch failed, try local backup
+      const backup = loadSubscriptionBackup();
+      if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
+        selectedCity = backup.city;
+        localStorage.setItem('city', selectedCity);
+        enabledPrayers = backup.enabledPrayers || {};
+        saveEnabledPrayers();
+        console.log('[Restore-backup] restored from local backup due to server error');
+      }
+      return;
+    }
     const data = await r.json();
     
     // Restore stored settings from server if available
-    if (data && data.data) {
+    if (data && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
+      // Server has non-empty settings
       const server = data.data;
       if (server.city && cities && cities.cities && cities.cities[server.city]) {
         selectedCity = server.city;
         localStorage.setItem('city', selectedCity);
         console.log('[Restore] city from server:', selectedCity);
       }
-      if (server.enabledPrayers && typeof server.enabledPrayers === 'object' && Object.keys(server.enabledPrayers).length > 0) {
-        enabledPrayers = server.enabledPrayers;
-        saveEnabledPrayers();
-        console.log('[Restore] enabledPrayers from server:', enabledPrayers);
-      }
-    } else if (data && data.fallbackRestored) {
-      // Fallback restored from most recent subscription
+      enabledPrayers = server.enabledPrayers;
+      saveEnabledPrayers();
+      console.log('[Restore] enabledPrayers from server:', enabledPrayers);
+    } else if (data && data.fallbackRestored && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
+      // Fallback had non-empty settings
       const server = data.data;
       if (server.city && cities && cities.cities && cities.cities[server.city]) {
         selectedCity = server.city;
         localStorage.setItem('city', selectedCity);
         console.log('[Restore-fallback] city from recent subscription:', selectedCity);
       }
-      if (server.enabledPrayers && typeof server.enabledPrayers === 'object' && Object.keys(server.enabledPrayers).length > 0) {
-        enabledPrayers = server.enabledPrayers;
+      enabledPrayers = server.enabledPrayers;
+      saveEnabledPrayers();
+      console.log('[Restore-fallback] enabledPrayers from recent:', enabledPrayers);
+    } else {
+      // Server returned empty settings, use local backup
+      const backup = loadSubscriptionBackup();
+      if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
+        selectedCity = backup.city;
+        localStorage.setItem('city', selectedCity);
+        enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
-        console.log('[Restore-fallback] enabledPrayers from recent:', enabledPrayers);
+        console.log('[Restore-backup] server had empty settings, restored from local backup');
       }
     }
   } catch (err) {
     console.warn('[Restore] error:', err && err.message);
+    // On any error, try local backup as last resort
+    const backup = loadSubscriptionBackup();
+    if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
+      selectedCity = backup.city;
+      localStorage.setItem('city', selectedCity);
+      enabledPrayers = backup.enabledPrayers || {};
+      saveEnabledPrayers();
+      console.log('[Restore-backup] using local backup due to error');
+    }
   }
 }
 
