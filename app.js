@@ -859,7 +859,11 @@ setInterval(() => {
 
 loadData().then(() => {
   if (Notification.permission === 'granted') {
-    ensurePushSubscription().then(() => updateServerSubscription().catch(() => {})).catch(() => {});
+    // First restore settings from server, then ensure subscription and sync
+    restoreSubscriptionSettings()
+      .then(() => ensurePushSubscription())
+      .then(() => updateServerSubscription())
+      .catch(() => {});
   }
 }).catch(() => {});
 
@@ -938,6 +942,56 @@ async function updateServerSubscription() {
       } catch (err) {}
     }
   } catch (err) {}
+}
+
+async function restoreSubscriptionSettings() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    
+    // Call update-subscription with only subscription (no city/enabledPrayers) to fetch stored settings
+    const r = await fetch('/api/update-subscription', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ subscription: sub })
+    });
+    
+    if (!r.ok) return;
+    const data = await r.json();
+    
+    // Restore stored settings from server if available
+    if (data && data.data) {
+      const server = data.data;
+      if (server.city && cities && cities.cities && cities.cities[server.city]) {
+        selectedCity = server.city;
+        localStorage.setItem('city', selectedCity);
+        console.log('[Restore] city from server:', selectedCity);
+      }
+      if (server.enabledPrayers && typeof server.enabledPrayers === 'object' && Object.keys(server.enabledPrayers).length > 0) {
+        enabledPrayers = server.enabledPrayers;
+        saveEnabledPrayers();
+        console.log('[Restore] enabledPrayers from server:', enabledPrayers);
+      }
+    } else if (data && data.fallbackRestored) {
+      // Fallback restored from most recent subscription
+      const server = data.data;
+      if (server.city && cities && cities.cities && cities.cities[server.city]) {
+        selectedCity = server.city;
+        localStorage.setItem('city', selectedCity);
+        console.log('[Restore-fallback] city from recent subscription:', selectedCity);
+      }
+      if (server.enabledPrayers && typeof server.enabledPrayers === 'object' && Object.keys(server.enabledPrayers).length > 0) {
+        enabledPrayers = server.enabledPrayers;
+        saveEnabledPrayers();
+        console.log('[Restore-fallback] enabledPrayers from recent:', enabledPrayers);
+      }
+    }
+  } catch (err) {
+    console.warn('[Restore] error:', err && err.message);
+  }
 }
 
 function initTheme() {

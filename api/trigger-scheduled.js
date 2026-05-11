@@ -139,6 +139,14 @@ const PRAYER_LABELS = {
   Isha: 'Khoftan'
 };
 
+function logDebug(msg) {
+  if (DEBUG_TRIGGER_SCHEDULED) console.log(msg);
+}
+
+function makeScheduledPushId(dayKey, subscriptionId, prayer) {
+  return `${dayKey}__${subscriptionId}__${prayer}`;
+}
+
 function getPrayerLabel(prayerKey) {
   return PRAYER_LABELS[prayerKey] || prayerKey;
 }

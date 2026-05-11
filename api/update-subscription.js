@@ -29,20 +29,49 @@ module.exports = async (req, res) => {
     const existingData = existing.exists ? existing.data() : null;
     const wasInvalid = existingData && (String(existingData.status || '') === 'invalid' || !!existingData.invalidAt);
 
-    const update = { updatedAt: now };
-    if (subscription) update.subscription = subscription;
-    if (city !== undefined) update.city = city || null;
-    if (enabledPrayers !== undefined) update.enabledPrayers = enabledPrayers || {};
-    // Reset failure counters and mark active when client updates subscription
-    update.badAttemptCount = 0;
-    update.lastFailedAt = null;
-    update.lastFailureMsg = null;
-    update.status = 'active';
-    update.invalidAt = null;
-    update.invalidReason = null;
-    update.invalidError = null;
-    update.invalidStatusCode = null;
-    await docRef.set(update, { merge: true });
+    // Check if this is a "read-only" fetch request (only subscription provided, no city/enabledPrayers)
+    const isReadOnly = city === undefined && enabledPrayers === undefined;
+
+    if (!isReadOnly) {
+      // UPDATE mode: merge new subscription and metadata, reset failure counters
+      const update = { updatedAt: now };
+      if (subscription) update.subscription = subscription;
+      if (city !== undefined) update.city = city || null;
+      if (enabledPrayers !== undefined) update.enabledPrayers = enabledPrayers || {};
+      // Reset failure counters and mark active when client updates subscription
+      update.badAttemptCount = 0;
+      update.lastFailedAt = null;
+      update.lastFailureMsg = null;
+      update.status = 'active';
+      update.invalidAt = null;
+      update.invalidReason = null;
+      update.invalidError = null;
+      update.invalidStatusCode = null;
+      await docRef.set(update, { merge: true });
+    } else if (!existing.exists) {
+      // READ-ONLY mode but doc doesn't exist: try to find most recent subscription as fallback
+      try {
+        const recent = await firestore.collection('subscriptions')
+          .orderBy('updatedAt', 'desc')
+          .limit(1)
+          .get();
+        if (!recent.empty) {
+          const recentData = recent.docs[0].data();
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ 
+            ok: true, 
+            id: docId, 
+            wasInvalid: false, 
+            data: { city: recentData.city || null, enabledPrayers: recentData.enabledPrayers || {}, status: recentData.status || 'active' },
+            fallbackRestored: true
+          }));
+          return;
+        }
+      } catch (err) {
+        // ignore fallback error
+      }
+    }
 
     // Read fresh doc to include in response
     const fresh = await docRef.get();
