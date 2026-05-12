@@ -16,6 +16,21 @@ if (!publicKey || !privateKey) {
 
 webpush.setVapidDetails(contact, publicKey, privateKey);
 
+function base64ToBase64Url(base64) {
+  if (!base64 || typeof base64 !== 'string') return base64;
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function normalizeSubscriptionKeys(subscription) {
+  if (!subscription || !subscription.keys) return subscription;
+  const normalized = { ...subscription };
+  normalized.keys = {
+    p256dh: base64ToBase64Url(subscription.keys.p256dh),
+    auth: base64ToBase64Url(subscription.keys.auth)
+  };
+  return normalized;
+}
+
 const args = process.argv.slice(2);
 if (args.length < 1) {
   console.error('Usage: node push-server.js ./subscription.json [payloadJson]');
@@ -29,8 +44,9 @@ if (args[1]) {
 }
 
 const sub = JSON.parse(fs.readFileSync(subPath, 'utf8'));
+const normalizedSub = normalizeSubscriptionKeys(sub);
 
-webpush.sendNotification(sub, JSON.stringify(payload)).then(() => {
+webpush.sendNotification(normalizedSub, JSON.stringify(payload)).then(() => {
   console.log('Push sent');
 }).catch(err => {
   console.error('Push failed', err);

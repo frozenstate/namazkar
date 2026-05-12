@@ -84,7 +84,9 @@ async function sendToSubscription(subscription, payload) {
   if (!subscription || !subscription.endpoint) {
     throw new Error('Invalid subscription: missing endpoint');
   }
-  return webpush.sendNotification(subscription, JSON.stringify(sanitizePayload(payload)));
+  // Normalize keys from base64 to base64url format expected by web-push
+  const normalizedSub = normalizeSubscriptionKeys(subscription);
+  return webpush.sendNotification(normalizedSub, JSON.stringify(sanitizePayload(payload)));
 }
 
 function getPushErrorStatusCode(err) {
@@ -96,6 +98,21 @@ function getPushErrorStatusCode(err) {
 
 function isGoneError(err) {
   return getPushErrorStatusCode(err) === 410;
+}
+
+function base64ToBase64Url(base64) {
+  if (!base64 || typeof base64 !== 'string') return base64;
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function normalizeSubscriptionKeys(subscription) {
+  if (!subscription || !subscription.keys) return subscription;
+  const normalized = { ...subscription };
+  normalized.keys = {
+    p256dh: base64ToBase64Url(subscription.keys.p256dh),
+    auth: base64ToBase64Url(subscription.keys.auth)
+  };
+  return normalized;
 }
 
 async function recordSubscriptionFailure(docId, err) {

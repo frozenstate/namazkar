@@ -930,12 +930,24 @@ async function updateServerSubscription() {
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
   
-  // Explicitly serialize PushSubscription to ensure keys are included
+  // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
+  function toBase64Url(buffer) {
+    if (!buffer) return null;
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    // Use base64url format (URL-safe, no padding): replace +/= with -_
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+  
+  // Explicitly serialize PushSubscription to ensure keys are included in base64url format
   const serializedSub = {
     endpoint: sub.endpoint,
     keys: {
-      p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
-      auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
+      p256dh: toBase64Url(sub.getKey('p256dh')),
+      auth: toBase64Url(sub.getKey('auth'))
     }
   };
   

@@ -15,6 +15,21 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.warn('VAPID keys not configured; trigger-scheduled will fail if called');
 }
 
+function base64ToBase64Url(base64) {
+  if (!base64 || typeof base64 !== 'string') return base64;
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function normalizeSubscriptionKeys(subscription) {
+  if (!subscription || !subscription.keys) return subscription;
+  const normalized = { ...subscription };
+  normalized.keys = {
+    p256dh: base64ToBase64Url(subscription.keys.p256dh),
+    auth: base64ToBase64Url(subscription.keys.auth)
+  };
+  return normalized;
+}
+
 function idFromEndpoint(endpoint) {
   if (!endpoint) return null;
   return Buffer.from(endpoint).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -328,7 +343,9 @@ module.exports = async (req, res) => {
                 keyTypes: { p256dh: typeof sub.keys.p256dh, auth: typeof sub.keys.auth },
                 keySizes: { p256dh: sub.keys.p256dh?.length, auth: sub.keys.auth?.length }
               });
-              await webpush.sendNotification(data.subscription, JSON.stringify(payload));
+              // Normalize keys to base64url format before sending
+              const normalizedSub = normalizeSubscriptionKeys(data.subscription);
+              await webpush.sendNotification(normalizedSub, JSON.stringify(payload));
               await logRef.set({
                 status: 'sent',
                 sentAt: new Date(),
