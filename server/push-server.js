@@ -23,8 +23,14 @@ function base64ToBase64Url(base64) {
 
 function normalizeSubscriptionKeys(subscription) {
   if (!subscription || !subscription.keys) return subscription;
-  // Keys are already in standard base64 format from client, pass through as-is
-  return subscription;
+  // Strip base64 padding (=) from keys - web-push requires keys without padding
+  return {
+    ...subscription,
+    keys: {
+      p256dh: subscription.keys.p256dh ? String(subscription.keys.p256dh).replace(/=/g, '') : subscription.keys.p256dh,
+      auth: subscription.keys.auth ? String(subscription.keys.auth).replace(/=/g, '') : subscription.keys.auth
+    }
+  };
 }
 
 const args = process.argv.slice(2);

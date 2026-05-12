@@ -800,10 +800,18 @@ async function ensurePushSubscription() {
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });// Send subscription to server so it can be stored and used to send pushes
       try {
+        // Properly serialize PushSubscription keys without padding
+        const serializedSub = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))).replace(/=/g, '') : null,
+            auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))).replace(/=/g, '') : null
+          }
+        };
         const response = await fetch('/api/save-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription: sub, city: selectedCity, enabledPrayers })
+          body: JSON.stringify({ subscription: serializedSub, city: selectedCity, enabledPrayers })
         });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -954,12 +962,12 @@ async function updateServerSubscription() {
   if (!sub) return;
   
   // Explicitly serialize PushSubscription to ensure keys are included
-  // Use standard base64 (with +/= characters) as this is what web-push expects
+  // Use standard base64 without padding (web-push requirement)
   const serializedSub = {
     endpoint: sub.endpoint,
     keys: {
-      p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
-      auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
+      p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))).replace(/=/g, '') : null,
+      auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))).replace(/=/g, '') : null
     }
   };
   

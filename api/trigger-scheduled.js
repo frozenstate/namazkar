@@ -22,8 +22,14 @@ function base64ToBase64Url(base64) {
 
 function normalizeSubscriptionKeys(subscription) {
   if (!subscription || !subscription.keys) return subscription;
-  // Keys are already in standard base64 format from client, pass through as-is
-  return subscription;
+  // Strip base64 padding (=) from keys - web-push requires keys without padding
+  return {
+    ...subscription,
+    keys: {
+      p256dh: subscription.keys.p256dh ? String(subscription.keys.p256dh).replace(/=/g, '') : subscription.keys.p256dh,
+      auth: subscription.keys.auth ? String(subscription.keys.auth).replace(/=/g, '') : subscription.keys.auth
+    }
+  };
 }
 
 function idFromEndpoint(endpoint) {
@@ -296,13 +302,19 @@ module.exports = async (req, res) => {
       if (!data || !data.subscription) return;
       const city = data.city || offsets.base_city;
       const cityOffset = (offsets.cities && offsets.cities[city] && offsets.cities[city].offset) || 0;
-      logDebug(`trigger-scheduled: sub ${doc.id} city=${city} cityOffset=${cityOffset} enabledPrayers=${JSON.stringify(data.enabledPrayers || {})}`);
+      
+      // If enabledPrayers is missing/empty, default to all prayers enabled
+      const enabledPrayersObj = data.enabledPrayers && typeof data.enabledPrayers === 'object' && Object.keys(data.enabledPrayers).length > 0
+        ? data.enabledPrayers
+        : Object.keys(duePrayers).reduce((acc, p) => { acc[p] = true; return acc; }, {});
+      
+      logDebug(`trigger-scheduled: sub ${doc.id} city=${city} cityOffset=${cityOffset} enabledPrayers=${JSON.stringify(enabledPrayersObj)}`);
       for (const prayer in duePrayers) {
         const at = parseTimeToDate(duePrayers[prayer], cityOffset, now, tableTz);
         const diffMs = at.getTime() - now.getTime();
         if (at > now && diffMs <= windowMs) {
           dueMatches++;
-          const enabled = (data.enabledPrayers && data.enabledPrayers[prayer]) || false;
+          const enabled = enabledPrayersObj[prayer] || false;
           logDebug(`trigger-scheduled: doc=${doc.id} prayer=${prayer} at=${at.toISOString()} diffMs=${diffMs} enabled=${enabled}`);
           if (!enabled) continue;
           const notificationText = getPrayerNotificationText(prayer);

@@ -249,12 +249,12 @@ self.addEventListener('pushsubscriptionchange', event => {
         });
 
         // Explicitly serialize PushSubscription to ensure keys are included
-        // Use standard base64 (with +/= characters) as this is what web-push expects
+        // Use standard base64 without padding (web-push requirement)
         const serializedSub = {
           endpoint: subscription.endpoint,
           keys: {
-            p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))) : null,
-            auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))) : null
+            p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))).replace(/=/g, '') : null,
+            auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))).replace(/=/g, '') : null
           }
         };
 
