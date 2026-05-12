@@ -102,15 +102,6 @@ function saveSubscriptionBackup() {
   } catch (err) {}
 }
 
-function saveSubscriptionEndpoint(endpoint) {
-  // Save the last known subscription endpoint so we can restore settings even if subscription is lost
-  if (endpoint) {
-    try {
-      localStorage.setItem('lastSubscriptionEndpoint', endpoint);
-    } catch (err) {}
-  }
-}
-
 function loadSubscriptionBackup() {
   try {
     const backup = localStorage.getItem('subscriptionBackup');
@@ -797,9 +788,8 @@ async function ensurePushSubscription() {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
-        // Save current state to backup and endpoint so that if subscription rotates, we can restore
+        // Save current state to backup so that if subscription rotates, we can restore
         saveSubscriptionBackup();
-        saveSubscriptionEndpoint(sub.endpoint);
       } catch (err) {showToast('Warning: Could not save subscription to server', 5000);
       }
 
@@ -964,9 +954,6 @@ async function updateServerSubscription() {
     enabledPrayersCount: Object.keys(enabledPrayers).length
   });
   
-  // Save endpoint for recovery if subscription is lost
-  saveSubscriptionEndpoint(serializedSub.endpoint);
-  
   try {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!r.ok) {
@@ -1014,185 +1001,71 @@ async function updateServerSubscription() {
 }
 
 async function restoreSubscriptionSettings() {
-  if (!('serviceWorker' in navigator)) {
-    console.log('[restoreSubscriptionSettings] SW not available');
-    return;
-  }
+  if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
-    if (!reg) {
-      console.log('[restoreSubscriptionSettings] SW not ready');
-      return;
-    }
+    if (!reg) return;
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      console.log('[restoreSubscriptionSettings] No subscription found, trying backup');
-      // No active subscription - this likely means it was lost/rotated by browser
-      // Try to restore from localStorage backup immediately
-      const backup = loadSubscriptionBackup();
-      console.log('[restoreSubscriptionSettings] Backup available:', !!backup, 'has city:', !!backup?.city);
-      if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
-        selectedCity = backup.city;
-        localStorage.setItem('city', selectedCity);
-        enabledPrayers = backup.enabledPrayers || {};
-        saveEnabledPrayers();
-        console.log('[restoreSubscriptionSettings] Restored from backup (no active subscription):', backup.city);
-        return;
-      }
-      
-      // Backup not available, try using last known endpoint to fetch settings from server
-      const lastEndpoint = localStorage.getItem('lastSubscriptionEndpoint');
-      console.log('[restoreSubscriptionSettings] Last endpoint available:', !!lastEndpoint);
-      if (lastEndpoint) {
-        try {
-          const fakeSubForFetch = {
-            endpoint: lastEndpoint,
-            keys: {
-              p256dh: 'placeholder',
-              auth: 'placeholder'
-            }
-          };
-          const r = await fetch('/api/update-subscription', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ subscription: fakeSubForFetch })
-          });
-          if (r.ok) {
-            const data = await r.json();
-            console.log('[restoreSubscriptionSettings] Fetched settings using last endpoint:', { 
-              hasData: !!data.data,
-              enabledPrayersCount: data.data?.enabledPrayers ? Object.keys(data.data.enabledPrayers).length : 0
-            });
-            if (data && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
-              const server = data.data;
-              if (server.city && cities && cities.cities && cities.cities[server.city]) {
-                selectedCity = server.city;
-                localStorage.setItem('city', selectedCity);
-                console.log('[restoreSubscriptionSettings] Restored city from last endpoint:', server.city);
-              }
-              enabledPrayers = server.enabledPrayers;
-              saveEnabledPrayers();
-              console.log('[restoreSubscriptionSettings] Restored enabledPrayers from last endpoint');
-              return;
-            }
-          }
-        } catch (err) {
-          console.log('[restoreSubscriptionSettings] Error using last endpoint:', err && err.message);
+    
+    let serializedSub;
+    if (sub) {
+      // Active subscription - serialize it
+      serializedSub = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
+          auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
         }
-      }
-      
-      console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
-        hasBackup: !!backup,
-        hasLastEndpoint: !!lastEndpoint,
-        hasCities: !!cities,
-        citiesData: cities?.cities ? Object.keys(cities.cities).slice(0, 3) : 'not-loaded'
-      });
-      return;
+      };
+    } else {
+      // No subscription - send empty one so server returns fallback
+      console.log('[restoreSubscriptionSettings] No subscription, requesting server fallback');
+      serializedSub = { endpoint: null, keys: { p256dh: null, auth: null } };
     }
     
-    // Explicitly serialize PushSubscription to ensure keys are included
-    // Use standard base64 (with +/= characters) as this is what web-push expects
-    const serializedSub = {
-      endpoint: sub.endpoint,
-      keys: {
-        p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
-        auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
-      }
-    };
-    
-    console.log('[restoreSubscriptionSettings] calling server with endpoint:', serializedSub.endpoint?.slice(-20));
-    
-    // Call update-subscription with only subscription (no city/enabledPrayers) to fetch stored settings
-    const r = await fetch('/api/update-subscription', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
+    // Always query server to fetch settings (either for current subscription or fallback)
+    const r = await fetch('/api/update-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: serializedSub })
     });
-    
-    console.log('[restoreSubscriptionSettings] server returned status:', r.status);
-    
+
     if (!r.ok) {
-      // Server fetch failed, try local backup
       console.log('[restoreSubscriptionSettings] Server error, trying backup');
       const backup = loadSubscriptionBackup();
-      console.log('[restoreSubscriptionSettings] Backup found:', !!backup, 'cities available:', !!cities);
       if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
         selectedCity = backup.city;
         localStorage.setItem('city', selectedCity);
         enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
-        console.log('[Restore-backup] restored from local backup due to server error:', backup.city);
-      } else {
-        console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
-          hasBackup: !!backup, 
-          hasBackupCity: backup?.city, 
-          hasCities: !!cities,
-          hasCitiesCities: cities?.cities
-        });
+        console.log('[Restore-backup] restored from local backup:', backup.city);
       }
       return;
     }
+
     const data = await r.json();
-    
-    console.log('[restoreSubscriptionSettings] server response:', { 
-      hasData: !!data.data, 
-      enabledPrayersCount: data.data?.enabledPrayers ? Object.keys(data.data.enabledPrayers).length : 0,
-      fallbackRestored: !!data.fallbackRestored
-    });
-    
-    // Restore stored settings from server if available
     if (data && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
-      // Server has non-empty settings
       const server = data.data;
       if (server.city && cities && cities.cities && cities.cities[server.city]) {
         selectedCity = server.city;
         localStorage.setItem('city', selectedCity);
-        console.log('[Restore] city from server:', selectedCity);
       }
       enabledPrayers = server.enabledPrayers;
       saveEnabledPrayers();
-      console.log('[Restore] enabledPrayers from server:', enabledPrayers);
-    } else if (data && data.fallbackRestored && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
-      // Fallback had non-empty settings
-      const server = data.data;
-      if (server.city && cities && cities.cities && cities.cities[server.city]) {
-        selectedCity = server.city;
-        localStorage.setItem('city', selectedCity);
-        console.log('[Restore-fallback] city from recent subscription:', selectedCity);
-      }
-      enabledPrayers = server.enabledPrayers;
-      saveEnabledPrayers();
-      console.log('[Restore-fallback] enabledPrayers from recent:', enabledPrayers);
+      console.log('[Restore] settings from server:', { city: selectedCity, prayersCount: Object.keys(enabledPrayers).length });
     } else {
-      // Server returned empty settings, use local backup
-      console.log('[restoreSubscriptionSettings] Server has empty settings, checking backup');
+      // Server returned empty, try local backup
       const backup = loadSubscriptionBackup();
-      console.log('[restoreSubscriptionSettings] Backup state:', { 
-        hasBackup: !!backup, 
-        backupCity: backup?.city,
-        hasCities: !!cities,
-        citiesLoaded: !!cities?.cities,
-        backupCityValid: cities?.cities ? !!cities.cities[backup?.city] : false
-      });
       if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
         selectedCity = backup.city;
         localStorage.setItem('city', selectedCity);
         enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
-        console.log('[Restore-backup] server had empty settings, restored from local backup:', backup.city);
+        console.log('[Restore-backup] server empty, using local backup:', backup.city);
       }
     }
   } catch (err) {
-    console.warn('[Restore] error:', err && err.message);
-    // On any error, try local backup as last resort
-    const backup = loadSubscriptionBackup();
-    if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
-      selectedCity = backup.city;
-      localStorage.setItem('city', selectedCity);
-      enabledPrayers = backup.enabledPrayers || {};
-      saveEnabledPrayers();
-      console.log('[Restore-backup] using local backup due to error');
-    }
+    console.warn('[restoreSubscriptionSettings] error:', err && err.message);
   }
 }
 
