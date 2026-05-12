@@ -1013,14 +1013,35 @@ async function restoreSubscriptionSettings() {
     const sub = await reg.pushManager.getSubscription();
     if (!sub) return;
     
+    // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
+    function toBase64Url(buffer) {
+      if (!buffer) return null;
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      // Use base64url format (URL-safe, no padding): replace +/= with -_
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+    
+    // Explicitly serialize PushSubscription to ensure keys are included in base64url format
+    const serializedSub = {
+      endpoint: sub.endpoint,
+      keys: {
+        p256dh: toBase64Url(sub.getKey('p256dh')),
+        auth: toBase64Url(sub.getKey('auth'))
+      }
+    };
+    
     // Call update-subscription with only subscription (no city/enabledPrayers) to fetch stored settings
     const r = await fetch('/api/update-subscription', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ subscription: sub })
+      body: JSON.stringify({ subscription: serializedSub })
     });
     
-    console.log('[restoreSubscriptionSettings] called with subscription ending:', sub.endpoint?.slice(-20));
+    console.log('[restoreSubscriptionSettings] called with subscription ending:', serializedSub.endpoint?.slice(-20));
     
     if (!r.ok) {
       // Server fetch failed, try local backup
