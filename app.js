@@ -134,20 +134,63 @@ function getLocalMidnight(date) {
 }
 
 function loadCalendarSettings() {
-  return fetch("/api/calendar-settings")
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load calendar settings`);
-      return res.json();
-    })
-    .then(data => {
-      calendarSettings = data && data.settings ? data.settings : null;
-      return calendarSettings;
-    })
-    .catch(err => {
-      console.warn("Calendar settings unavailable:", err);
-      calendarSettings = null;
-      return null;
-    });
+  return (async () => {
+    // Try IndexedDB first
+    if (typeof getCalendar !== 'undefined') {
+      try {
+        const idbCalendar = await getCalendar();
+        if (idbCalendar && idbCalendar.settings) {
+          calendarSettings = idbCalendar.settings;
+          console.log('[calendar] Loaded from IndexedDB');
+          
+          // Still try to refresh from network in background
+          return fetch("/api/calendar-settings")
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(data => {
+              const newSettings = data && data.settings ? data.settings : null;
+              if (newSettings && JSON.stringify(newSettings) !== JSON.stringify(calendarSettings)) {
+                calendarSettings = newSettings;
+                if (typeof saveCalendar !== 'undefined') {
+                  saveCalendar(data).catch(() => {});
+                }
+              }
+              return calendarSettings;
+            })
+            .catch(err => {
+              console.warn("Calendar refresh from network failed:", err);
+              return calendarSettings;
+            });
+        }
+      } catch (err) {
+        // Fall through to network fetch
+      }
+    }
+    
+    // Network fetch
+    return fetch("/api/calendar-settings")
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load calendar settings`);
+        return res.json();
+      })
+      .then(data => {
+        calendarSettings = data && data.settings ? data.settings : null;
+        
+        // Save to IndexedDB for future loads
+        if (calendarSettings && typeof saveCalendar !== 'undefined') {
+          saveCalendar(data).catch(() => {});
+        }
+        
+        return calendarSettings;
+      })
+      .catch(err => {
+        console.warn("Calendar settings unavailable:", err);
+        calendarSettings = null;
+        return null;
+      });
+  })();
 }
 
 function formatGregorianDate(now) {
@@ -886,8 +929,40 @@ if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
 if (currentDateEl) currentDateEl.onclick = toggleCalendarMode;
 updateNotifyIconState();
 
+/**
+ * Register background sync tasks
+ * @param {ServiceWorkerRegistration} reg - Service worker registration
+ */
+async function registerBackgroundSync(reg) {
+  try {
+    if (!('sync' in reg)) {
+      console.log('[background-sync] Background Sync API not supported');
+      return;
+    }
+    
+    // Register sync for offsets (might add new cities)
+    await reg.sync.register('sync-offsets');
+    console.log('[background-sync] Registered sync-offsets');
+    
+    // Register sync for calendar settings (if offline)
+    await reg.sync.register('sync-calendar');
+    console.log('[background-sync] Registered sync-calendar');
+  } catch (err) {
+    console.error('[background-sync] Error registering sync:', err && err.message);
+  }
+}
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("persist.js", { scope: "/" }).then(reg => {}).catch(err => {});
+  navigator.serviceWorker.register("persist.js", { scope: "/" }).then(reg => {
+    // Register background sync tasks
+    registerBackgroundSync(reg);
+    
+    // Re-register sync when coming back online
+    window.addEventListener('online', () => {
+      console.log('[background-sync] Back online, registering sync tasks');
+      registerBackgroundSync(reg);
+    });
+  }).catch(err => {});
 }
 
 setInterval(() => {

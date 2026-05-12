@@ -7,7 +7,8 @@ const DB_NAME = 'namazkar-cache';
 const DB_VERSION = 1;
 const TABLES = {
   TIMETABLE: 'timetable',
-  OFFSETS: 'offsets'
+  OFFSETS: 'offsets',
+  CALENDAR: 'calendar'
 };
 
 let db = null;
@@ -46,6 +47,12 @@ async function initDB() {
       if (!database.objectStoreNames.contains(TABLES.OFFSETS)) {
         database.createObjectStore(TABLES.OFFSETS, { keyPath: 'id' });
         console.log('[persist-storage] Created offsets store');
+      }
+
+      // Create calendar store
+      if (!database.objectStoreNames.contains(TABLES.CALENDAR)) {
+        database.createObjectStore(TABLES.CALENDAR, { keyPath: 'id' });
+        console.log('[persist-storage] Created calendar store');
       }
     };
   });
@@ -169,14 +176,22 @@ async function getOffsets() {
 
 /**
  * Get age of cached data in milliseconds
- * @param {'timetable'|'offsets'} type - Type of data
+ * @param {'timetable'|'offsets'|'calendar'} type - Type of data
  * @returns {Promise<number|null>} Age in milliseconds, or null if not cached
  */
 async function getCacheAge(type) {
   try {
+    let tableMap = {
+      'timetable': TABLES.TIMETABLE,
+      'offsets': TABLES.OFFSETS,
+      'calendar': TABLES.CALENDAR
+    };
+    const tableName = tableMap[type];
+    if (!tableName) return null;
+    
     const database = await initDB();
-    const tx = database.transaction(type === 'timetable' ? TABLES.TIMETABLE : TABLES.OFFSETS, 'readonly');
-    const store = tx.objectStore(type === 'timetable' ? TABLES.TIMETABLE : TABLES.OFFSETS);
+    const tx = database.transaction(tableName, 'readonly');
+    const store = tx.objectStore(tableName);
     
     return new Promise((resolve, reject) => {
       const request = store.get('main');
@@ -192,6 +207,64 @@ async function getCacheAge(type) {
     });
   } catch (err) {
     console.error('[persist-storage] Error getting cache age:', err && err.message);
+    return null;
+  }
+}
+
+/**
+ * Save calendar settings to IndexedDB
+ * @param {Object} calendar - The calendar settings data
+ * @returns {Promise<void>}
+ */
+async function saveCalendar(calendar) {
+  if (!calendar || typeof calendar !== 'object') return;
+  
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readwrite');
+    const store = tx.objectStore(TABLES.CALENDAR);
+    
+    await new Promise((resolve, reject) => {
+      const request = store.put({
+        id: 'main',
+        data: calendar,
+        timestamp: Date.now()
+      });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+    
+    console.log('[persist-storage] Calendar settings saved to IndexedDB');
+  } catch (err) {
+    console.error('[persist-storage] Error saving calendar:', err && err.message);
+  }
+}
+
+/**
+ * Retrieve calendar settings from IndexedDB
+ * @returns {Promise<Object|null>}
+ */
+async function getCalendar() {
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readonly');
+    const store = tx.objectStore(TABLES.CALENDAR);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.get('main');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result) {
+          console.log('[persist-storage] Calendar loaded from IndexedDB (age:', Date.now() - result.timestamp, 'ms)');
+          resolve(result.data);
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  } catch (err) {
+    console.error('[persist-storage] Error reading calendar:', err && err.message);
     return null;
   }
 }
