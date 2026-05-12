@@ -102,6 +102,15 @@ function saveSubscriptionBackup() {
   } catch (err) {}
 }
 
+function saveSubscriptionEndpoint(endpoint) {
+  // Save the last known subscription endpoint so we can restore settings even if subscription is lost
+  if (endpoint) {
+    try {
+      localStorage.setItem('lastSubscriptionEndpoint', endpoint);
+    } catch (err) {}
+  }
+}
+
 function loadSubscriptionBackup() {
   try {
     const backup = localStorage.getItem('subscriptionBackup');
@@ -788,8 +797,9 @@ async function ensurePushSubscription() {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
-        // Save current state to backup so that if subscription rotates, we can restore
+        // Save current state to backup and endpoint so that if subscription rotates, we can restore
         saveSubscriptionBackup();
+        saveSubscriptionEndpoint(sub.endpoint);
       } catch (err) {showToast('Warning: Could not save subscription to server', 5000);
       }
 
@@ -954,6 +964,9 @@ async function updateServerSubscription() {
     enabledPrayersCount: Object.keys(enabledPrayers).length
   });
   
+  // Save endpoint for recovery if subscription is lost
+  saveSubscriptionEndpoint(serializedSub.endpoint);
+  
   try {
     const r = await fetch('/api/update-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!r.ok) {
@@ -1024,13 +1037,56 @@ async function restoreSubscriptionSettings() {
         enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
         console.log('[restoreSubscriptionSettings] Restored from backup (no active subscription):', backup.city);
-      } else {
-        console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
-          hasBackup: !!backup,
-          hasCities: !!cities,
-          citiesData: cities?.cities ? Object.keys(cities.cities).slice(0, 3) : 'not-loaded'
-        });
+        return;
       }
+      
+      // Backup not available, try using last known endpoint to fetch settings from server
+      const lastEndpoint = localStorage.getItem('lastSubscriptionEndpoint');
+      console.log('[restoreSubscriptionSettings] Last endpoint available:', !!lastEndpoint);
+      if (lastEndpoint) {
+        try {
+          const fakeSubForFetch = {
+            endpoint: lastEndpoint,
+            keys: {
+              p256dh: 'placeholder',
+              auth: 'placeholder'
+            }
+          };
+          const r = await fetch('/api/update-subscription', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ subscription: fakeSubForFetch })
+          });
+          if (r.ok) {
+            const data = await r.json();
+            console.log('[restoreSubscriptionSettings] Fetched settings using last endpoint:', { 
+              hasData: !!data.data,
+              enabledPrayersCount: data.data?.enabledPrayers ? Object.keys(data.data.enabledPrayers).length : 0
+            });
+            if (data && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
+              const server = data.data;
+              if (server.city && cities && cities.cities && cities.cities[server.city]) {
+                selectedCity = server.city;
+                localStorage.setItem('city', selectedCity);
+                console.log('[restoreSubscriptionSettings] Restored city from last endpoint:', server.city);
+              }
+              enabledPrayers = server.enabledPrayers;
+              saveEnabledPrayers();
+              console.log('[restoreSubscriptionSettings] Restored enabledPrayers from last endpoint');
+              return;
+            }
+          }
+        } catch (err) {
+          console.log('[restoreSubscriptionSettings] Error using last endpoint:', err && err.message);
+        }
+      }
+      
+      console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
+        hasBackup: !!backup,
+        hasLastEndpoint: !!lastEndpoint,
+        hasCities: !!cities,
+        citiesData: cities?.cities ? Object.keys(cities.cities).slice(0, 3) : 'not-loaded'
+      });
       return;
     }
     
