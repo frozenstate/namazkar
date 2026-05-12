@@ -1,7 +1,11 @@
+// Import IndexedDB persistence layer
+importScripts('/persist-storage.js');
+
 const CACHE = "namazkar-pwa-v3";
 const CORE_ASSETS = [
   "/",
   "/index.html",
+  "/persist-storage.js",
   "/styles.css",
   "/app.js",
   "/manifest.json",
@@ -126,10 +130,24 @@ async function readCachedJson(path) {
 self.addEventListener("message", async e => {
   if (e.data.type !== "SCHEDULE") return;
 
-  const [table, offsetData] = await Promise.all([
-    readCachedJson("/data/table.json"),
-    readCachedJson("/data/offset.json")
-  ]);
+  // Try IndexedDB first for faster access
+  let table = null, offsetData = null;
+  try {
+    [table, offsetData] = await Promise.all([
+      typeof getTimetable !== 'undefined' ? getTimetable().catch(() => null) : Promise.resolve(null),
+      typeof getOffsets !== 'undefined' ? getOffsets().catch(() => null) : Promise.resolve(null)
+    ]);
+  } catch (err) {
+    // Fall through to Cache API on error
+  }
+
+  // Fallback to Cache API if IndexedDB miss
+  if (!table || !offsetData) {
+    [table, offsetData] = await Promise.all([
+      readCachedJson("/data/table.json"),
+      readCachedJson("/data/offset.json")
+    ]);
+  }
 
   if (!table || !table.days || !offsetData || !offsetData.cities) return;
 

@@ -253,17 +253,33 @@ function applyLoadedData(nextTimetable, nextCities, sourceLabel = "") {
 async function loadData() {
   loadEnabledPrayers();
 
-  const [cachedTimetable, cachedCities] = await Promise.all([
-    readCachedJson("/data/table.json"),
-    readCachedJson("/data/offset.json")
+  // Try IndexedDB first for instant cold-start loading
+  const [idbTimetable, idbCities] = await Promise.all([
+    typeof getTimetable !== 'undefined' ? getTimetable().catch(() => null) : Promise.resolve(null),
+    typeof getOffsets !== 'undefined' ? getOffsets().catch(() => null) : Promise.resolve(null)
   ]);
 
-  const hasCachedData = isValidTimetableData(cachedTimetable) && isValidOffsetData(cachedCities);
-  if (hasCachedData) {
-    applyLoadedData(cachedTimetable, cachedCities, "cache");
+  const hasIDBData = isValidTimetableData(idbTimetable) && isValidOffsetData(idbCities);
+  if (hasIDBData) {
+    applyLoadedData(idbTimetable, idbCities, "IndexedDB");
     loadCalendarSettings().then(() => updateDayContext()).catch(() => {});
   }
 
+  // Fallback to Cache API if IndexedDB miss
+  if (!hasIDBData) {
+    const [cachedTimetable, cachedCities] = await Promise.all([
+      readCachedJson("/data/table.json"),
+      readCachedJson("/data/offset.json")
+    ]);
+
+    const hasCachedData = isValidTimetableData(cachedTimetable) && isValidOffsetData(cachedCities);
+    if (hasCachedData) {
+      applyLoadedData(cachedTimetable, cachedCities, "cache");
+      loadCalendarSettings().then(() => updateDayContext()).catch(() => {});
+    }
+  }
+
+  // Always try network fetch in background
   try {
     const [nextTimetable, nextCities] = await Promise.all([
       fetchJson("data/table.json", "table.json"),
@@ -277,17 +293,21 @@ async function loadData() {
       throw new Error("Invalid offset.json structure: missing cities");
     }
 
-    const shouldReplace = !hasCachedData || nextTimetable !== timetable || nextCities !== cities;
+    const shouldReplace = timetable === undefined || nextTimetable !== timetable || nextCities !== cities;
     if (shouldReplace) {
-      applyLoadedData(nextTimetable, nextCities, hasCachedData ? "network refresh" : "network");
+      applyLoadedData(nextTimetable, nextCities, hasIDBData ? "network refresh" : !hasIDBData ? "network" : "network");
     }
 
-    if (!hasCachedData) {
+    // Save to IndexedDB and Cache API for future loads
+    if (typeof saveTimetable !== 'undefined') saveTimetable(nextTimetable).catch(() => {});
+    if (typeof saveOffsets !== 'undefined') saveOffsets(nextCities).catch(() => {});
+
+    if (!hasIDBData) {
       await loadCalendarSettings();
       updateDayContext();
     }
   } catch (err) {
-    if (!hasCachedData) {
+    if (!hasIDBData) {
       console.error("Error loading data:", err);
       showToast(`Error: ${err.message}. Retrying...`, 4000);
       setTimeout(loadData, 3000);
