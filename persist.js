@@ -230,24 +230,13 @@ self.addEventListener('pushsubscriptionchange', event => {
           applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
         });
 
-        // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
-        function toBase64Url(buffer) {
-          if (!buffer) return null;
-          const bytes = new Uint8Array(buffer);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          // Use base64url format (URL-safe, no padding): replace +/= with -_
-          return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-        }
-
-        // Explicitly serialize PushSubscription to ensure keys are included in base64url format
+        // Explicitly serialize PushSubscription to ensure keys are included
+        // Use standard base64 (with +/= characters) as this is what web-push expects
         const serializedSub = {
           endpoint: subscription.endpoint,
           keys: {
-            p256dh: toBase64Url(subscription.getKey('p256dh')),
-            auth: toBase64Url(subscription.getKey('auth'))
+            p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))) : null,
+            auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))) : null
           }
         };
 

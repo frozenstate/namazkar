@@ -107,12 +107,8 @@ function base64ToBase64Url(base64) {
 
 function normalizeSubscriptionKeys(subscription) {
   if (!subscription || !subscription.keys) return subscription;
-  const normalized = { ...subscription };
-  normalized.keys = {
-    p256dh: base64ToBase64Url(subscription.keys.p256dh),
-    auth: base64ToBase64Url(subscription.keys.auth)
-  };
-  return normalized;
+  // Keys are already in standard base64 format from client, pass through as-is
+  return subscription;
 }
 
 async function recordSubscriptionFailure(docId, err) {

@@ -787,7 +787,10 @@ async function ensurePushSubscription() {
         });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        }} catch (err) {showToast('Warning: Could not save subscription to server', 5000);
+        }
+        // Save current state to backup so that if subscription rotates, we can restore
+        saveSubscriptionBackup();
+      } catch (err) {showToast('Warning: Could not save subscription to server', 5000);
       }
 
       return sub;
@@ -930,24 +933,13 @@ async function updateServerSubscription() {
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return;
   
-  // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
-  function toBase64Url(buffer) {
-    if (!buffer) return null;
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    // Use base64url format (URL-safe, no padding): replace +/= with -_
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  }
-  
-  // Explicitly serialize PushSubscription to ensure keys are included in base64url format
+  // Explicitly serialize PushSubscription to ensure keys are included
+  // Use standard base64 (with +/= characters) as this is what web-push expects
   const serializedSub = {
     endpoint: sub.endpoint,
     keys: {
-      p256dh: toBase64Url(sub.getKey('p256dh')),
-      auth: toBase64Url(sub.getKey('auth'))
+      p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
+      auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
     }
   };
   
@@ -1002,6 +994,9 @@ async function updateServerSubscription() {
         }
       } catch (err) {}
     }
+    
+    // Save current state to backup so that if subscription rotates, we can restore
+    saveSubscriptionBackup();
   } catch (err) {}
 }
 
@@ -1018,28 +1013,34 @@ async function restoreSubscriptionSettings() {
     }
     const sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      console.log('[restoreSubscriptionSettings] No subscription found');
+      console.log('[restoreSubscriptionSettings] No subscription found, trying backup');
+      // No active subscription - this likely means it was lost/rotated by browser
+      // Try to restore from localStorage backup immediately
+      const backup = loadSubscriptionBackup();
+      console.log('[restoreSubscriptionSettings] Backup available:', !!backup, 'has city:', !!backup?.city);
+      if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
+        selectedCity = backup.city;
+        localStorage.setItem('city', selectedCity);
+        enabledPrayers = backup.enabledPrayers || {};
+        saveEnabledPrayers();
+        console.log('[restoreSubscriptionSettings] Restored from backup (no active subscription):', backup.city);
+      } else {
+        console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
+          hasBackup: !!backup,
+          hasCities: !!cities,
+          citiesData: cities?.cities ? Object.keys(cities.cities).slice(0, 3) : 'not-loaded'
+        });
+      }
       return;
     }
     
-    // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
-    function toBase64Url(buffer) {
-      if (!buffer) return null;
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      // Use base64url format (URL-safe, no padding): replace +/= with -_
-      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    }
-    
-    // Explicitly serialize PushSubscription to ensure keys are included in base64url format
+    // Explicitly serialize PushSubscription to ensure keys are included
+    // Use standard base64 (with +/= characters) as this is what web-push expects
     const serializedSub = {
       endpoint: sub.endpoint,
       keys: {
-        p256dh: toBase64Url(sub.getKey('p256dh')),
-        auth: toBase64Url(sub.getKey('auth'))
+        p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
+        auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
       }
     };
     
