@@ -1006,12 +1006,21 @@ async function updateServerSubscription() {
 }
 
 async function restoreSubscriptionSettings() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator)) {
+    console.log('[restoreSubscriptionSettings] SW not available');
+    return;
+  }
   try {
     const reg = await navigator.serviceWorker.ready;
-    if (!reg) return;
+    if (!reg) {
+      console.log('[restoreSubscriptionSettings] SW not ready');
+      return;
+    }
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
+    if (!sub) {
+      console.log('[restoreSubscriptionSettings] No subscription found');
+      return;
+    }
     
     // Helper to convert ArrayBuffer to base64url format (web-push expects this format)
     function toBase64Url(buffer) {
@@ -1034,6 +1043,8 @@ async function restoreSubscriptionSettings() {
       }
     };
     
+    console.log('[restoreSubscriptionSettings] calling server with endpoint:', serializedSub.endpoint?.slice(-20));
+    
     // Call update-subscription with only subscription (no city/enabledPrayers) to fetch stored settings
     const r = await fetch('/api/update-subscription', { 
       method: 'POST', 
@@ -1041,21 +1052,36 @@ async function restoreSubscriptionSettings() {
       body: JSON.stringify({ subscription: serializedSub })
     });
     
-    console.log('[restoreSubscriptionSettings] called with subscription ending:', serializedSub.endpoint?.slice(-20));
+    console.log('[restoreSubscriptionSettings] server returned status:', r.status);
     
     if (!r.ok) {
       // Server fetch failed, try local backup
+      console.log('[restoreSubscriptionSettings] Server error, trying backup');
       const backup = loadSubscriptionBackup();
+      console.log('[restoreSubscriptionSettings] Backup found:', !!backup, 'cities available:', !!cities);
       if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
         selectedCity = backup.city;
         localStorage.setItem('city', selectedCity);
         enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
-        console.log('[Restore-backup] restored from local backup due to server error');
+        console.log('[Restore-backup] restored from local backup due to server error:', backup.city);
+      } else {
+        console.log('[restoreSubscriptionSettings] Backup restore failed:', { 
+          hasBackup: !!backup, 
+          hasBackupCity: backup?.city, 
+          hasCities: !!cities,
+          hasCitiesCities: cities?.cities
+        });
       }
       return;
     }
     const data = await r.json();
+    
+    console.log('[restoreSubscriptionSettings] server response:', { 
+      hasData: !!data.data, 
+      enabledPrayersCount: data.data?.enabledPrayers ? Object.keys(data.data.enabledPrayers).length : 0,
+      fallbackRestored: !!data.fallbackRestored
+    });
     
     // Restore stored settings from server if available
     if (data && data.data && data.data.enabledPrayers && Object.keys(data.data.enabledPrayers).length > 0) {
@@ -1082,13 +1108,21 @@ async function restoreSubscriptionSettings() {
       console.log('[Restore-fallback] enabledPrayers from recent:', enabledPrayers);
     } else {
       // Server returned empty settings, use local backup
+      console.log('[restoreSubscriptionSettings] Server has empty settings, checking backup');
       const backup = loadSubscriptionBackup();
+      console.log('[restoreSubscriptionSettings] Backup state:', { 
+        hasBackup: !!backup, 
+        backupCity: backup?.city,
+        hasCities: !!cities,
+        citiesLoaded: !!cities?.cities,
+        backupCityValid: cities?.cities ? !!cities.cities[backup?.city] : false
+      });
       if (backup && backup.city && cities && cities.cities && cities.cities[backup.city]) {
         selectedCity = backup.city;
         localStorage.setItem('city', selectedCity);
         enabledPrayers = backup.enabledPrayers || {};
         saveEnabledPrayers();
-        console.log('[Restore-backup] server had empty settings, restored from local backup');
+        console.log('[Restore-backup] server had empty settings, restored from local backup:', backup.city);
       }
     }
   } catch (err) {
