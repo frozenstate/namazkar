@@ -27,6 +27,9 @@ module.exports = async (req, res) => {
       return res.status(400).end('Invalid subscription.keys structure');
     }
     
+    // Check if this is a "read-only" fetch request (only subscription provided, no city/enabledPrayers)
+    const isReadOnly = city === undefined && enabledPrayers === undefined;
+    
     console.log('[update-subscription] received subscription:', { 
       endpoint: subscription.endpoint?.slice(-30),
       keyTypes: { p256dh: typeof subscription.keys.p256dh, auth: typeof subscription.keys.auth },
@@ -43,9 +46,6 @@ module.exports = async (req, res) => {
     const existing = await docRef.get();
     const existingData = existing.exists ? existing.data() : null;
     const wasInvalid = existingData && (String(existingData.status || '') === 'invalid' || !!existingData.invalidAt);
-
-    // Check if this is a "read-only" fetch request (only subscription provided, no city/enabledPrayers)
-    const isReadOnly = city === undefined && enabledPrayers === undefined;
 
     if (!isReadOnly) {
       // UPDATE mode: merge new subscription and metadata, reset failure counters
