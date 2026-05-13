@@ -1037,12 +1037,12 @@ async function restoreSubscriptionSettings() {
     
     let serializedSub;
     if (sub) {
-      // Active subscription - serialize it
+      // Active subscription - serialize it with padding stripping (must match ensurePushSubscription)
       serializedSub = {
         endpoint: sub.endpoint,
         keys: {
-          p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))) : null,
-          auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))) : null
+          p256dh: sub.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))).replace(/=/g, '') : null,
+          auth: sub.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))).replace(/=/g, '') : null
         }
       };
     } else {
