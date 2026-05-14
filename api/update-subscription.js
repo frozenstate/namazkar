@@ -19,16 +19,19 @@ module.exports = async (req, res) => {
     });
 
     const { subscription, city, enabledPrayers } = body;
-    if (!subscription || !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
-    
-    // Validate subscription structure when saving
-    if (!subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
-      console.error('update-subscription: invalid subscription structure', { endpoint: !!subscription.endpoint, keys: !!subscription.keys, p256dh: !!subscription.keys?.p256dh, auth: !!subscription.keys?.auth });
-      return res.status(400).end('Invalid subscription.keys structure');
-    }
+    if (!subscription) return res.status(400).end('Missing subscription object');
     
     // Check if this is a "read-only" fetch request (only subscription provided, no city/enabledPrayers)
     const isReadOnly = city === undefined && enabledPrayers === undefined;
+    
+    // Endpoint is required for updates, but null is allowed in read-only mode (fallback request)
+    if (!isReadOnly && !subscription.endpoint) return res.status(400).end('Missing subscription.endpoint');
+    
+    // Only validate subscription structure when actually saving (not in read-only mode)
+    if (!isReadOnly && (!subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth)) {
+      console.error('update-subscription: invalid subscription structure', { endpoint: !!subscription.endpoint, keys: !!subscription.keys, p256dh: !!subscription.keys?.p256dh, auth: !!subscription.keys?.auth });
+      return res.status(400).end('Invalid subscription.keys structure');
+    }
     
     console.log('[update-subscription] received subscription:', { 
       endpoint: subscription.endpoint?.slice(-30),
