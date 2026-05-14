@@ -817,8 +817,8 @@ async function ensurePushSubscription() {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
         console.log('[ensurePushSubscription] Subscription saved to server');
-        // Save current state to backup so that if subscription rotates, we can restore
-        saveSubscriptionBackup();
+        // Note: Don't save backup here - enabledPrayers is still empty at this point
+        // Backup is saved later in updateServerSubscription() when settings are finalized
       } catch (err) {showToast('Warning: Could not save subscription to server', 5000);
         console.error('[ensurePushSubscription] Failed to save subscription:', err?.message);
       }
