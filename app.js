@@ -14,8 +14,9 @@ const PRAYER_LABELS = {
 };
 
 const CALENDAR_MODE_KEY = "calendarMode";
+const CALENDAR_SETTINGS_KEY = "calendarSettings";
 const DAY_MS = 24 * 60 * 60 * 1000;
-let calendarSettings = null;
+let calendarSettings = loadCachedCalendarSettings();
 let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) === "gregorian" ? "gregorian" : "hijri";
 
 const timesDiv = document.getElementById("times");
@@ -121,6 +122,27 @@ function saveCalendarMode() {
   localStorage.setItem(CALENDAR_MODE_KEY, calendarMode);
 }
 
+function loadCachedCalendarSettings() {
+  try {
+    const raw = localStorage.getItem(CALENDAR_SETTINGS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveCachedCalendarSettings(settings) {
+  try {
+    if (settings && typeof settings === "object") {
+      localStorage.setItem(CALENDAR_SETTINGS_KEY, JSON.stringify(settings));
+    } else {
+      localStorage.removeItem(CALENDAR_SETTINGS_KEY);
+    }
+  } catch (err) {}
+}
+
 function normalizeDateInput(value) {
   if (!value) return "";
   const text = String(value).trim();
@@ -141,12 +163,15 @@ function loadCalendarSettings() {
     })
     .then(data => {
       calendarSettings = data && data.settings ? data.settings : null;
+      if (calendarSettings) saveCachedCalendarSettings(calendarSettings);
       return calendarSettings;
     })
     .catch(err => {
       console.warn("Calendar settings unavailable:", err);
-      calendarSettings = null;
-      return null;
+      if (!calendarSettings) {
+        calendarSettings = loadCachedCalendarSettings();
+      }
+      return calendarSettings;
     });
 }
 
