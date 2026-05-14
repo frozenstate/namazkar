@@ -626,7 +626,7 @@ async function listSubscriptions() {
         openCustomPushModal({
           mode: 'single',
           subscription: s.subscription,
-          presetIds: [String(clean.id || '')].filter(Boolean)
+          presetIds: [String(s.id || '')].filter(Boolean)
         });
       };
       d.appendChild(btn);
