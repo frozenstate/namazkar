@@ -60,6 +60,54 @@ function maskSubscription(sub) {
   };
 }
 
+function renderSubscriptionCard(sub, options = {}) {
+  const clean = maskSubscription(sub);
+  const d = document.createElement('div');
+  d.className = 'admin-sub-item';
+  d.innerHTML = `
+    <div><strong>Subscription</strong> <code>${clean.id}</code></div>
+    <div><strong>Endpoint</strong> <code>${clean.endpoint}</code></div>
+    <div><strong>City</strong> ${clean.city}</div>
+    <div><strong>Updated</strong> ${clean.updatedAt}</div>
+    <details style="margin: 0.75rem 0 0 0;">
+      <summary style="cursor: pointer; font-weight: 500;">Prayer preferences</summary>
+      <pre style="margin: 0.5rem 0 0 0; font-size: 0.8rem;">${JSON.stringify(clean.enabledPrayers, null, 2)}</pre>
+    </details>
+  `;
+
+  if (options.errorText) {
+    const error = document.createElement('div');
+    error.style.marginTop = '0.75rem';
+    error.innerHTML = `<strong>Failure</strong> ${options.errorText}`;
+    d.appendChild(error);
+  }
+
+  return d;
+}
+
+async function resolveSubscriptionDetails(ids) {
+  const wanted = Array.from(new Set((ids || []).map(id => String(id || '').trim()).filter(Boolean)));
+  if (!wanted.length) return [];
+
+  const known = new Map((subscriptionsCache || []).map(item => [String(item.id || ''), item]));
+  const missing = wanted.filter(id => !known.has(id));
+
+  if (missing.length) {
+    try {
+      const res = await authedFetch('/api/list-subscriptions');
+      if (res.ok) {
+        const data = await res.json();
+        subscriptionsCache = data.subscriptions || [];
+        for (const item of subscriptionsCache) {
+          known.set(String(item.id || ''), item);
+        }
+      }
+    } catch (err) {}
+  }
+
+  return wanted.map(id => known.get(id) || { id, subscription: null, city: '—', enabledPrayers: {}, updatedAt: '—' });
+}
+
 function formatLogDate(value) {
   if (!value || value === '—') return '—';
   const date = new Date(value);
@@ -393,16 +441,12 @@ async function sendCustomPushFromModal(event) {
       const title = document.createElement('strong');
       title.textContent = `Failed deliveries (${data.failedDetails.length}):`;
       info.appendChild(title);
-      const list = document.createElement('ul');
-      list.style.margin = '0.5rem 0 0 0';
-      list.style.paddingLeft = '1.2rem';
       const limit = 20;
-      data.failedDetails.slice(0, limit).forEach(fd => {
-        const li = document.createElement('li');
-        li.textContent = fd.id + (fd.error ? ` — ${fd.error}` : '');
-        list.appendChild(li);
+      const failedCards = await resolveSubscriptionDetails(data.failedDetails.slice(0, limit).map(fd => fd.id));
+      failedCards.forEach((record, index) => {
+        const fd = data.failedDetails[index] || {};
+        info.appendChild(renderSubscriptionCard(record, { errorText: fd.error || '' }));
       });
-      info.appendChild(list);
       if (data.failedDetails.length > limit) {
         const more = document.createElement('div');
         more.style.marginTop = '0.5rem';
@@ -574,19 +618,7 @@ async function listSubscriptions() {
       return;
     }
     data.subscriptions.forEach(s => {
-      const clean = maskSubscription(s);
-      const d = document.createElement('div');
-      d.className = 'admin-sub-item';
-      d.innerHTML = `
-        <div><strong>Subscription</strong> <code>${clean.id}</code></div>
-        <div><strong>Endpoint</strong> <code>${clean.endpoint}</code></div>
-        <div><strong>City</strong> ${clean.city}</div>
-        <div><strong>Updated</strong> ${clean.updatedAt}</div>
-        <details style="margin: 0.75rem 0 0 0;">
-          <summary style="cursor: pointer; font-weight: 500;">Prayer preferences</summary>
-          <pre style="margin: 0.5rem 0 0 0; font-size: 0.8rem;">${JSON.stringify(clean.enabledPrayers, null, 2)}</pre>
-        </details>
-      `;
+      const d = renderSubscriptionCard(s);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Custom push';

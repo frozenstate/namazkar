@@ -18,6 +18,7 @@ const CALENDAR_SETTINGS_KEY = "calendarSettings";
 const DAY_MS = 24 * 60 * 60 * 1000;
 let calendarSettings = loadCachedCalendarSettings();
 let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) === "gregorian" ? "gregorian" : "hijri";
+let calendarSettingsPromise = null;
 
 const timesDiv = document.getElementById("times");
 const cityPicker = document.getElementById("cityPicker");
@@ -143,6 +144,29 @@ function saveCachedCalendarSettings(settings) {
   } catch (err) {}
 }
 
+async function loadPersistedCalendarSettings() {
+  if (calendarSettings) return calendarSettings;
+
+  try {
+    const indexedDbSettings = typeof getCalendarSettings !== "undefined"
+      ? await getCalendarSettings().catch(() => null)
+      : null;
+    if (indexedDbSettings) {
+      calendarSettings = indexedDbSettings;
+      saveCachedCalendarSettings(indexedDbSettings);
+      return indexedDbSettings;
+    }
+  } catch (err) {}
+
+  const cachedSettings = loadCachedCalendarSettings();
+  if (cachedSettings) {
+    calendarSettings = cachedSettings;
+    return cachedSettings;
+  }
+
+  return null;
+}
+
 function normalizeDateInput(value) {
   if (!value) return "";
   const text = String(value).trim();
@@ -156,23 +180,36 @@ function getLocalMidnight(date) {
 }
 
 function loadCalendarSettings() {
-  return fetch("/api/calendar-settings")
-    .then(res => {
+  if (calendarSettingsPromise) return calendarSettingsPromise;
+
+  calendarSettingsPromise = (async () => {
+    const persistedSettings = await loadPersistedCalendarSettings();
+    if (persistedSettings) {
+      calendarSettings = persistedSettings;
+    }
+
+    try {
+      const res = await fetch("/api/calendar-settings");
       if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to load calendar settings`);
-      return res.json();
-    })
-    .then(data => {
-      calendarSettings = data && data.settings ? data.settings : null;
-      if (calendarSettings) saveCachedCalendarSettings(calendarSettings);
-      return calendarSettings;
-    })
-    .catch(err => {
-      console.warn("Calendar settings unavailable:", err);
-      if (!calendarSettings) {
-        calendarSettings = loadCachedCalendarSettings();
+      const data = await res.json();
+      const nextSettings = data && data.settings ? data.settings : null;
+      if (nextSettings) {
+        calendarSettings = nextSettings;
+        saveCachedCalendarSettings(nextSettings);
+        if (typeof saveCalendarSettings !== "undefined") {
+          saveCalendarSettings(nextSettings).catch(() => {});
+        }
       }
-      return calendarSettings;
-    });
+    } catch (err) {
+      console.warn("Calendar settings unavailable:", err);
+    }
+
+    return calendarSettings;
+  })();
+
+  return calendarSettingsPromise.finally(() => {
+    calendarSettingsPromise = null;
+  });
 }
 
 function formatGregorianDate(now) {
@@ -183,27 +220,18 @@ function formatGregorianDate(now) {
   return new Intl.DateTimeFormat(undefined, dateOpts).format(now);
 }
 
-function formatFallbackHijriDate(now) {
-  return new Intl.DateTimeFormat("en-u-ca-islamic", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(now);
-}
-
 function formatAdminHijriDate(now) {
-  if (!calendarSettings) return formatFallbackHijriDate(now);
+  if (!calendarSettings) return null;
   const monthName = calendarSettings.monthName || calendarSettings.hijriMonth || "Hijri";
   const hijriYear = calendarSettings.hijriYear || calendarSettings.monthYear || "";
   const startDate = normalizeDateInput(calendarSettings.startDate);
-  if (!startDate) return formatFallbackHijriDate(now);
+  if (!startDate) return null;
 
   const start = new Date(startDate);
-  if (Number.isNaN(start.getTime())) return formatFallbackHijriDate(now);
+  if (Number.isNaN(start.getTime())) return null;
 
   const dayDiff = Math.floor((getLocalMidnight(now) - getLocalMidnight(start)) / DAY_MS) + 1;
-  if (!Number.isFinite(dayDiff) || dayDiff < 1) return formatFallbackHijriDate(now);
+  if (!Number.isFinite(dayDiff) || dayDiff < 1) return null;
 
   const suffix = hijriYear ? ` ${hijriYear} AH` : " AH";
   return `${dayDiff} ${monthName}${suffix}`;
@@ -211,7 +239,7 @@ function formatAdminHijriDate(now) {
 
 function renderCalendarDate(now = new Date()) {
   if (calendarMode === "gregorian") return formatGregorianDate(now);
-  return formatAdminHijriDate(now);
+  return formatAdminHijriDate(now) || "Connect to internet to fetch hijri date";
 }
 
 function updateDateToggleState(formattedDate) {
@@ -219,7 +247,7 @@ function updateDateToggleState(formattedDate) {
   currentDateEl.setAttribute("aria-pressed", String(calendarMode === "gregorian"));
   currentDateEl.title = calendarMode === "gregorian"
     ? "Showing Gregorian date. Click to show hijri date."
-    : "Showing hijri date. Click to show Gregorian date.";
+    : (calendarSettings ? "Showing hijri date. Click to show Gregorian date." : "Connect to internet to fetch hijri date");
   currentDateEl.setAttribute("aria-label", currentDateEl.title);
   currentDateEl.dataset.calendarMode = calendarMode;
   if (formattedDate) currentDateEl.textContent = formattedDate;
@@ -277,6 +305,7 @@ function applyLoadedData(nextTimetable, nextCities, sourceLabel = "") {
 
 async function loadData() {
   loadEnabledPrayers();
+  const calendarSettingsLoad = loadCalendarSettings();
 
   // Try IndexedDB first for instant cold-start loading
   const [idbTimetable, idbCities] = await Promise.all([
@@ -287,7 +316,6 @@ async function loadData() {
   const hasIDBData = isValidTimetableData(idbTimetable) && isValidOffsetData(idbCities);
   if (hasIDBData) {
     applyLoadedData(idbTimetable, idbCities, "IndexedDB");
-    loadCalendarSettings().then(() => updateDayContext()).catch(() => {});
   }
 
   // Fallback to Cache API if IndexedDB miss
@@ -300,7 +328,6 @@ async function loadData() {
     const hasCachedData = isValidTimetableData(cachedTimetable) && isValidOffsetData(cachedCities);
     if (hasCachedData) {
       applyLoadedData(cachedTimetable, cachedCities, "cache");
-      loadCalendarSettings().then(() => updateDayContext()).catch(() => {});
     }
   }
 
@@ -326,11 +353,6 @@ async function loadData() {
     // Save to IndexedDB and Cache API for future loads
     if (typeof saveTimetable !== 'undefined') saveTimetable(nextTimetable).catch(() => {});
     if (typeof saveOffsets !== 'undefined') saveOffsets(nextCities).catch(() => {});
-
-    if (!hasIDBData) {
-      await loadCalendarSettings();
-      updateDayContext();
-    }
   } catch (err) {
     if (!hasIDBData) {
       console.error("Error loading data:", err);
@@ -340,6 +362,9 @@ async function loadData() {
     }
     console.warn("Background data refresh failed:", err);
   }
+
+  await calendarSettingsLoad.catch(() => {});
+  updateDayContext();
 }
 
 function populateCities() {
