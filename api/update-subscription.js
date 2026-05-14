@@ -42,6 +42,67 @@ module.exports = async (req, res) => {
     });
     
     const docId = idFromEndpoint(subscription.endpoint);
+    
+    // For read-only mode with null endpoint, handle specially (skip doc lookup)
+    if (isReadOnly && !subscription.endpoint) {
+      // READ-ONLY mode with null endpoint: try to find most recent subscription as fallback
+      try {
+        // Query all active subscriptions ordered by recent (may need composite index)
+        // If index doesn't exist, catch the error and return empty
+        const recent = await firestore.collection('subscriptions')
+          .where('status', '==', 'active')
+          .orderBy('updatedAt', 'desc')
+          .limit(1)
+          .get();
+        if (!recent.empty) {
+          const recentData = recent.docs[0].data();
+          console.log('[update-subscription] Fallback: returning most recent active subscription');
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ 
+            ok: true, 
+            id: 'fallback', 
+            wasInvalid: false, 
+            data: { city: recentData.city || null, enabledPrayers: recentData.enabledPrayers || {}, status: recentData.status || 'active' },
+            fallbackRestored: true
+          }));
+          return;
+        }
+        // No active subscriptions found, try any subscription
+        const any = await firestore.collection('subscriptions')
+          .orderBy('updatedAt', 'desc')
+          .limit(1)
+          .get();
+        if (!any.empty) {
+          const anyData = any.docs[0].data();
+          console.log('[update-subscription] Fallback: returning most recent subscription (may be invalid)');
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ 
+            ok: true, 
+            id: 'fallback', 
+            wasInvalid: false, 
+            data: { city: anyData.city || null, enabledPrayers: anyData.enabledPrayers || {}, status: anyData.status || 'active' },
+            fallbackRestored: true
+          }));
+          return;
+        }
+      } catch (err) {
+        console.warn('[update-subscription] Fallback query error (likely missing composite index):', err?.message);
+        // Return empty data so client falls back to local backup
+        res.setHeader('Content-Type', 'application/json');
+        res.statusCode = 200;
+        res.end(JSON.stringify({ 
+          ok: true, 
+          id: 'fallback', 
+          wasInvalid: false, 
+          data: { city: null, enabledPrayers: {}, status: 'active' },
+          fallbackRestored: true
+        }));
+        return;
+      }
+    }
+    
     const docRef = firestore.collection('subscriptions').doc(docId);
     const now = new Date().toISOString();
 
@@ -66,30 +127,8 @@ module.exports = async (req, res) => {
       update.invalidError = null;
       update.invalidStatusCode = null;
       await docRef.set(update, { merge: true });
-    } else if (!existing.exists) {
-      // READ-ONLY mode but doc doesn't exist: try to find most recent subscription as fallback
-      try {
-        const recent = await firestore.collection('subscriptions')
-          .orderBy('updatedAt', 'desc')
-          .limit(1)
-          .get();
-        if (!recent.empty) {
-          const recentData = recent.docs[0].data();
-          res.setHeader('Content-Type', 'application/json');
-          res.statusCode = 200;
-          res.end(JSON.stringify({ 
-            ok: true, 
-            id: docId, 
-            wasInvalid: false, 
-            data: { city: recentData.city || null, enabledPrayers: recentData.enabledPrayers || {}, status: recentData.status || 'active' },
-            fallbackRestored: true
-          }));
-          return;
-        }
-      } catch (err) {
-        // ignore fallback error
-      }
     }
+    // else: READ-ONLY mode with valid endpoint - just read and return existing doc below
 
     // Read fresh doc to include in response
     const fresh = await docRef.get();
