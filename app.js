@@ -816,13 +816,16 @@ async function ensurePushSubscription() {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
+        console.log('[ensurePushSubscription] Subscription saved to server');
         // Save current state to backup so that if subscription rotates, we can restore
         saveSubscriptionBackup();
       } catch (err) {showToast('Warning: Could not save subscription to server', 5000);
+        console.error('[ensurePushSubscription] Failed to save subscription:', err?.message);
       }
 
       return sub;
     } catch (err) {
+      console.error('[ensurePushSubscription] subscribe() failed:', err?.message);
       // If push subscription fails, still allow local notifications to workshowToast('Local notifications enabled (push notifications unavailable on this browser)', 4000);
       return null;
     }
@@ -1033,7 +1036,18 @@ async function restoreSubscriptionSettings() {
   try {
     const reg = await navigator.serviceWorker.ready;
     if (!reg) return;
-    const sub = await reg.pushManager.getSubscription();
+    
+    // Try to get subscription with explicit error handling for Firefox/strict browsers
+    let sub = null;
+    try {
+      sub = await reg.pushManager.getSubscription();
+    } catch (getSubErr) {
+      console.warn('[restoreSubscriptionSettings] getSubscription() threw:', getSubErr?.message);
+      // In Firefox PWAs, pushManager might throw if permission context is unusual
+      // Treat this as "no subscription available" and use fallback
+      console.log('[restoreSubscriptionSettings] Treating getSubscription() error as no subscription (Firefox?)');
+      sub = null;
+    }
     
     let serializedSub;
     if (sub) {
@@ -1046,7 +1060,7 @@ async function restoreSubscriptionSettings() {
         }
       };
     } else {
-      // No subscription - send empty one so server returns fallback
+      // No subscription (or error retrieving) - send empty one so server returns fallback
       console.log('[restoreSubscriptionSettings] No subscription, requesting server fallback');
       serializedSub = { endpoint: null, keys: { p256dh: null, auth: null } };
     }
