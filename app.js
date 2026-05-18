@@ -91,6 +91,10 @@ function loadEnabledPrayers() {
 
 function saveEnabledPrayers() {
   localStorage.setItem("prayerNotifications", JSON.stringify(enabledPrayers));
+  // Also cache in IndexedDB for service worker
+  if (typeof saveNotificationPreferences !== 'undefined') {
+    saveNotificationPreferences({ city: selectedCity, enabledPrayers }).catch(() => {});
+  }
 }
 
 function saveSubscriptionBackup() {
@@ -459,6 +463,10 @@ function selectCity(city) {
 
   selectedCity = city;
   localStorage.setItem("city", selectedCity);
+  // Cache in IndexedDB for service worker to use independently
+  if (typeof saveNotificationPreferences !== 'undefined') {
+    saveNotificationPreferences({ city: selectedCity, enabledPrayers }).catch(() => {});
+  }
   saveSubscriptionBackup();
   updateSelectedCityPlaceholder();
   renderTimes();
@@ -911,6 +919,11 @@ function scheduleNotifications() {
         city: selectedCity,
         enabledPrayers
       });
+    }
+    
+    // Also register periodic background sync for independent checks
+    if (reg && reg.sync) {
+      reg.sync.register('check-notifications').catch(() => {});
     }
   }).catch(() => {});
 

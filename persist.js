@@ -127,15 +127,14 @@ async function readCachedJson(path) {
   }
 }
 
-self.addEventListener("message", async e => {
-  if (e.data.type !== "SCHEDULE") return;
-
+async function checkAndShowNotifications(overrideCity = null, overrideEnabled = null) {
   // Try IndexedDB first for faster access
-  let table = null, offsetData = null;
+  let table = null, offsetData = null, prefs = null;
   try {
-    [table, offsetData] = await Promise.all([
+    [table, offsetData, prefs] = await Promise.all([
       typeof getTimetable !== 'undefined' ? getTimetable().catch(() => null) : Promise.resolve(null),
-      typeof getOffsets !== 'undefined' ? getOffsets().catch(() => null) : Promise.resolve(null)
+      typeof getOffsets !== 'undefined' ? getOffsets().catch(() => null) : Promise.resolve(null),
+      typeof getNotificationPreferences !== 'undefined' ? getNotificationPreferences().catch(() => null) : Promise.resolve(null)
     ]);
   } catch (err) {
     // Fall through to Cache API on error
@@ -151,7 +150,8 @@ self.addEventListener("message", async e => {
 
   if (!table || !table.days || !offsetData || !offsetData.cities) return;
 
-  const city = e.data.city && offsetData.cities[e.data.city] ? e.data.city : (offsetData.base_city || Object.keys(offsetData.cities)[0]);
+  const city = overrideCity || (prefs && prefs.city) || (offsetData.base_city || Object.keys(offsetData.cities)[0]);
+  const enabled = overrideEnabled || (prefs && prefs.enabledPrayers) || {};
   const offset = (offsetData.cities[city] && offsetData.cities[city].offset) || 0;
 
   const now = new Date();
@@ -161,7 +161,6 @@ self.addEventListener("message", async e => {
 
   const times = table.days[key];
   if (!times) return;
-  const enabled = e.data.enabledPrayers || {};
 
 
   for (const prayer in times) {
@@ -170,7 +169,7 @@ self.addEventListener("message", async e => {
     const fireAt = new Date();
     fireAt.setHours(h, m + offset, 0, 0);
 
-    // Only show notification if time is very near (≤ 3 seconds)
+    // Show notification if time is very near (≤ 3 seconds)
     if (fireAt > now && fireAt - now < 3_000) {
       const notificationText = getPrayerNotificationText(prayer);
       self.registration.showNotification(notificationText.title, {
@@ -180,7 +179,37 @@ self.addEventListener("message", async e => {
       });
     }
   }
+}
+
+self.addEventListener("message", async e => {
+  if (e.data.type !== "SCHEDULE") return;
+  await checkAndShowNotifications(e.data.city, e.data.enabledPrayers);
 });
+
+// Periodic background check for notifications even when app is closed
+self.addEventListener('sync', event => {
+  if (event.tag === 'check-notifications') {
+    event.waitUntil(checkAndShowNotifications());
+  }
+});
+
+// Alarm API for periodic checks (when available)
+if (typeof self.scheduler !== 'undefined' && self.scheduler.postTask) {
+  // Wake up periodically to check notifications
+  const checkPeriodically = async () => {
+    await checkAndShowNotifications();
+    // Schedule next check in 1 minute
+    setTimeout(() => {
+      if (self.scheduler && self.scheduler.postTask) {
+        self.scheduler.postTask(checkPeriodically);
+      }
+    }, 60000);
+  };
+  
+  if (self.scheduler && self.scheduler.postTask) {
+    self.scheduler.postTask(checkPeriodically).catch(() => {});
+  }
+}
 
 // Handle incoming push messages from a Push Service (Web Push)
 self.addEventListener('push', event => {let payload = { title: 'Namaz Kar', body: 'waqt wot' };

@@ -233,6 +233,122 @@ async function getCalendarSettings() {
 }
 
 /**
+ * Save notification preferences to IndexedDB
+ * @param {Object} prefs - Preferences object with city and enabledPrayers
+ * @returns {Promise<void>}
+ */
+async function saveNotificationPreferences(prefs) {
+  if (!prefs || typeof prefs !== 'object') return;
+
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readwrite');
+    const store = tx.objectStore(TABLES.CALENDAR);
+
+    await new Promise((resolve, reject) => {
+      const request = store.put({
+        id: 'notification-prefs',
+        city: prefs.city || null,
+        enabledPrayers: prefs.enabledPrayers || {},
+        timestamp: Date.now()
+      });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+
+    console.log('[persist-storage] Notification preferences saved');
+  } catch (err) {
+    console.error('[persist-storage] Error saving notification preferences:', err && err.message);
+  }
+}
+
+/**
+ * Retrieve notification preferences from IndexedDB
+ * @returns {Promise<Object|null>}
+ */
+async function getNotificationPreferences() {
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readonly');
+    const store = tx.objectStore(TABLES.CALENDAR);
+
+    return new Promise((resolve, reject) => {
+      const request = store.get('notification-prefs');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result) {
+          resolve({ city: result.city, enabledPrayers: result.enabledPrayers });
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  } catch (err) {
+    console.error('[persist-storage] Error reading notification preferences:', err && err.message);
+    return null;
+  }
+}
+
+/**
+ * Save notification preferences to IndexedDB for service worker
+ * @param {Object} prefs - Preferences with city and enabledPrayers
+ * @returns {Promise<void>}
+ */
+async function saveNotificationPreferences(prefs) {
+  if (!prefs || typeof prefs !== 'object') return;
+
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readwrite');
+    const store = tx.objectStore(TABLES.CALENDAR);
+
+    await new Promise((resolve, reject) => {
+      const request = store.put({
+        id: 'notification-prefs',
+        city: prefs.city || null,
+        enabledPrayers: prefs.enabledPrayers || {},
+        timestamp: Date.now()
+      });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+
+    console.log('[persist-storage] Notification preferences saved');
+  } catch (err) {
+    console.error('[persist-storage] Error saving notification preferences:', err && err.message);
+  }
+}
+
+/**
+ * Retrieve notification preferences from IndexedDB
+ * @returns {Promise<Object|null>}
+ */
+async function getNotificationPreferences() {
+  try {
+    const database = await initDB();
+    const tx = database.transaction(TABLES.CALENDAR, 'readonly');
+    const store = tx.objectStore(TABLES.CALENDAR);
+
+    return new Promise((resolve, reject) => {
+      const request = store.get('notification-prefs');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result) {
+          resolve({ city: result.city, enabledPrayers: result.enabledPrayers });
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  } catch (err) {
+    console.error('[persist-storage] Error reading notification preferences:', err && err.message);
+    return null;
+  }
+}
+
+/**
  * Get age of cached data in milliseconds
  * @param {'timetable'|'offsets'} type - Type of data
  * @returns {Promise<number|null>} Age in milliseconds, or null if not cached
