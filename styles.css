@@ -473,6 +473,15 @@ select, button {
   color: var(--muted);
 }
 
+.zakat-help {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+  opacity: 0.9;
+}
+
 .zakat-field input {
   width: 100%;
   padding: 0.65rem 0.75rem;

@@ -143,26 +143,42 @@
           <label class="zakat-field">
             <span>Cash & savings</span>
             <input id="zakatCash" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Money currently available in hand or bank.</small>
           </label>
           <label class="zakat-field">
             <span>Investments / business</span>
             <input id="zakatInvestments" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Zakatable investments and business assets.</small>
           </label>
           <label class="zakat-field">
-            <span>Gold value</span>
-            <input id="zakatGoldValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <span>Gold owned (g)</span>
+            <input id="zakatGoldOwned" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Weight of gold you own, in grams.</small>
           </label>
           <label class="zakat-field">
-            <span>Silver value</span>
-            <input id="zakatSilverValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <span>Silver owned (g)</span>
+            <input id="zakatSilverOwned" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Weight of silver you own, in grams.</small>
           </label>
           <label class="zakat-field">
             <span>Other zakatable assets</span>
             <input id="zakatOtherAssets" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Any other assets counted in zakat.</small>
           </label>
           <label class="zakat-field">
-            <span>Debts due now</span>
+            <span>Average Monthly Expenses</span>
+            <input id="zakatExpenses" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Immediate spending needs that reduce zakatable assets.</small>
+          </label>
+          <label class="zakat-field">
+            <span>Amount lent</span>
+            <input id="zakatLent" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Money you have lent out and expect to recover.</small>
+          </label>
+          <label class="zakat-field">
+            <span>Debts Due</span>
             <input id="zakatDebts" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Money you owe to others.</small>
           </label>
         </div>
 
@@ -173,12 +189,23 @@
               <option value="silver" selected>Silver threshold</option>
               <option value="gold">Gold threshold</option>
             </select>
+            <small class="zakat-help">Choose which metal threshold to use.</small>
           </label>
           <label class="zakat-field">
-            <span id="zakatThresholdLabel">Silver nisab value</span>
-            <input id="zakatThresholdValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <span>Gold Cost (per g)</span>
+            <input id="zakatGoldCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Editable per-gram gold price. Auto-fill can be added later.</small>
+          </label>
+          <label class="zakat-field">
+            <span>Silver Cost (per g)</span>
+            <input id="zakatSilverCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Editable per-gram silver price. Auto-fill can be added later.</small>
           </label>
         </div>
+
+        <p class="zakat-note">
+          Nisab is fixed at 612.36 g of silver or 87.48 g of gold. The calculator multiplies that weight by the chosen metal price per gram.
+        </p>
 
         <p class="zakat-note">
           Good live price sources: your local bullion/jewellery market, IBJA rates, MCX references, and trusted trackers such as Goodreturns. Use the same source consistently.

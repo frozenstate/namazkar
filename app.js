@@ -125,20 +125,20 @@ const ngoList = document.getElementById("ngoList");
 const zakatForm = document.getElementById("zakatForm");
 const zakatCash = document.getElementById("zakatCash");
 const zakatInvestments = document.getElementById("zakatInvestments");
-const zakatGoldValue = document.getElementById("zakatGoldValue");
-const zakatSilverValue = document.getElementById("zakatSilverValue");
+const zakatGoldOwned = document.getElementById("zakatGoldOwned");
+const zakatSilverOwned = document.getElementById("zakatSilverOwned");
 const zakatOtherAssets = document.getElementById("zakatOtherAssets");
-const zakatDebts = document.getElementById("zakatDebts");
+const zakatExpenses = document.getElementById("zakatExpenses");
+const zakatLent = document.getElementById("zakatLent");
 const zakatThresholdType = document.getElementById("zakatThresholdType");
-const zakatThresholdLabel = document.getElementById("zakatThresholdLabel");
-const zakatThresholdValue = document.getElementById("zakatThresholdValue");
+const zakatGoldCost = document.getElementById("zakatGoldCost");
+const zakatSilverCost = document.getElementById("zakatSilverCost");
 const zakatResult = document.getElementById("zakatResult");
 const zakatResetBtn = document.getElementById("zakatResetBtn");
 
-const ZAKAT_THRESHOLD_CACHE_KEY = "zakatThresholdValues";
-const ZAKAT_THRESHOLD_DEFAULTS = {
-  silver: 75000,
-  gold: 750000
+const ZAKAT_GRAMS = {
+  silver: 612.36,
+  gold: 87.48
 };
 
 // Menu toggle buttons (synced with topbar equivalents)
@@ -1420,63 +1420,25 @@ function formatMoney(value) {
   }).format(value);
 }
 
-function loadZakatThresholdCache() {
-  try {
-    const raw = localStorage.getItem(ZAKAT_THRESHOLD_CACHE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (err) {
-    return {};
-  }
-}
-
-function saveZakatThresholdCache(cache) {
-  try {
-    localStorage.setItem(ZAKAT_THRESHOLD_CACHE_KEY, JSON.stringify(cache || {}));
-  } catch (err) {}
-}
-
 function getZakatThresholdBasis() {
   return zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
-}
-
-function syncZakatThresholdValue(force = false) {
-  if (!zakatThresholdValue) return;
-
-  const basis = getZakatThresholdBasis();
-  const cache = loadZakatThresholdCache();
-  const currentValue = readNumberInput(zakatThresholdValue);
-  const cachedValue = readNumberInput({ value: cache[basis] });
-  const nextValue = cachedValue > 0 ? cachedValue : ZAKAT_THRESHOLD_DEFAULTS[basis];
-
-  if (force || currentValue <= 0 || currentValue === cachedValue || currentValue === ZAKAT_THRESHOLD_DEFAULTS[basis]) {
-    zakatThresholdValue.value = String(nextValue);
-  }
-
-  updateZakatThresholdLabel();
-}
-
-function persistZakatThresholdValue() {
-  if (!zakatThresholdValue) return;
-  const basis = getZakatThresholdBasis();
-  const cache = loadZakatThresholdCache();
-  cache[basis] = readNumberInput(zakatThresholdValue);
-  saveZakatThresholdCache(cache);
 }
 
 function calculateZakat() {
   if (!zakatResult) return;
 
-  const totalAssets = readNumberInput(zakatCash)
+  const grossAssets = readNumberInput(zakatCash)
     + readNumberInput(zakatInvestments)
-    + readNumberInput(zakatGoldValue)
-    + readNumberInput(zakatSilverValue)
-    + readNumberInput(zakatOtherAssets);
-  const debts = readNumberInput(zakatDebts);
-  const netAssets = Math.max(totalAssets - debts, 0);
+    + (readNumberInput(zakatGoldOwned) * readNumberInput(zakatGoldCost))
+    + (readNumberInput(zakatSilverOwned) * readNumberInput(zakatSilverCost))
+    + readNumberInput(zakatOtherAssets)
+    + readNumberInput(zakatLent);
+  const expenses = readNumberInput(zakatExpenses);
+  const netAssets = Math.max(grossAssets - expenses, 0);
   const thresholdType = zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
-  const effectiveNisab = readNumberInput(zakatThresholdValue);
+  const basisGrams = ZAKAT_GRAMS[thresholdType];
+  const costPerGram = thresholdType === 'gold' ? readNumberInput(zakatGoldCost) : readNumberInput(zakatSilverCost);
+  const effectiveNisab = basisGrams * costPerGram;
   const isEligible = effectiveNisab > 0 ? netAssets >= effectiveNisab : netAssets > 0;
   const zakatAmount = isEligible ? netAssets * 0.025 : 0;
 
@@ -1484,8 +1446,10 @@ function calculateZakat() {
     <div class="zakat-summary ${isEligible ? 'eligible' : 'ineligible'}">
       <strong>${isEligible ? 'Zakat due' : 'Below nisab'}</strong>
       <div>Threshold basis: ${thresholdType === 'gold' ? 'Gold' : 'Silver'}</div>
-      <div>Total assets: ${formatMoney(totalAssets)}</div>
-      <div>Debts: ${formatMoney(debts)}</div>
+      <div>Nisab weight: ${formatMoney(basisGrams)} g</div>
+      <div>Gross assets before expenses: ${formatMoney(grossAssets)}</div>
+      <div>Average monthly expenses: ${formatMoney(expenses)}</div>
+      <div>Amount lent: ${formatMoney(readNumberInput(zakatLent))}</div>
       <div>Net zakatable assets: ${formatMoney(netAssets)}</div>
       <div>Nisab threshold: ${effectiveNisab > 0 ? formatMoney(effectiveNisab) : 'Not set'}</div>
       <div class="zakat-total">Estimated zakat: ${formatMoney(zakatAmount)}</div>
@@ -1494,21 +1458,13 @@ function calculateZakat() {
 }
 
 function resetZakatCalculator() {
-  [zakatCash, zakatInvestments, zakatGoldValue, zakatSilverValue, zakatOtherAssets, zakatDebts, zakatThresholdValue].forEach(input => {
+  [zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatGoldCost, zakatSilverCost].forEach(input => {
     if (input) input.value = '0';
   });
   if (zakatThresholdType) {
     zakatThresholdType.value = 'silver';
   }
-  saveZakatThresholdCache({});
-  updateZakatThresholdLabel();
-  syncZakatThresholdValue(true);
   calculateZakat();
-}
-
-function updateZakatThresholdLabel() {
-  if (!zakatThresholdLabel || !zakatThresholdType) return;
-  zakatThresholdLabel.textContent = zakatThresholdType.value === 'gold' ? 'Gold nisab value' : 'Silver nisab value';
 }
 
 async function renderNGOList() {
@@ -1707,25 +1663,19 @@ if (zakatResetBtn) {
   zakatResetBtn.addEventListener('click', resetZakatCalculator);
 }
 
-[zakatCash, zakatInvestments, zakatGoldValue, zakatSilverValue, zakatOtherAssets, zakatDebts, zakatThresholdValue].forEach(input => {
+[zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatGoldCost, zakatSilverCost].forEach(input => {
   if (input) {
-    input.addEventListener('input', () => {
-      if (input === zakatThresholdValue) persistZakatThresholdValue();
-      calculateZakat();
-    });
+    input.addEventListener('input', calculateZakat);
   }
 });
 
 if (zakatThresholdType) {
   zakatThresholdType.addEventListener('change', () => {
-    syncZakatThresholdValue();
     calculateZakat();
   });
 }
 
-if (zakatThresholdValue) {
-  syncZakatThresholdValue(true);
-}
+calculateZakat();
 
 // Sync menu toggles with topbar equivalents
 function updateMenuToggleStates() {
