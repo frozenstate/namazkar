@@ -17,13 +17,16 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - Local city offsets supported
 - Uses Kaeshir names for prayer times
 - Per-prayer notification toggles
+- Easy to access NGO database to make donations easier
 - Clean dark/light themes
 
 **Features**
 - **Daily timetable:** Renders today's times from [data/table.json](data/table.json) using the DD-MM date key.
 - **City offsets:** Applies per-city minute offsets from [data/offset.json](data/offset.json).
+- **NGO database:** Donate to local organizations, via UPI handles and bank accounts [data/donations.json] (data/donations.json).
+- **Zakat calculator (WIP):** Calculate zakat for your assets~, with dynamically updating local gold and silver prices~.
 - **Next prayer:** Shows the next upcoming prayer with a live countdown.
-- **Notifications:** Global enable + per-prayer toggles, with foreground timers and Web Push support for background delivery.
+- **Notifications:** Global enable + per-prayer toggles, with foreground timers and Web Push support for background delivery (PWAs on iOS do not support background notifications, this is an OS limitation).
 - **Calendar toggle:** The top-bar date defaults to the Kashmir hijri month record and can be toggled to Gregorian with a click.
 - **Dark mode:** Default dark theme with automatic icon inversion.
 - **PWA caching:** Cache-first for assets and data for quick startup.
@@ -36,16 +39,16 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - [manifest.json](manifest.json): PWA metadata.
 - [data/table.json](data/table.json): Timetable data, keyed by date (`DD-MM`). Times stored in 24-hour format.
 - [data/offset.json](data/offset.json): City list and minute offsets.
+- [data/donations.json] (data/donations.json): NGO database.
 - [icons/](icons/): SVG icons (bell, bell-slash, dark-mode, mosque, round favicon, Apple touch icon).
 - [api/](api/): Vercel serverless endpoints for VAPID key lookup, Firestore-backed subscription storage, and push delivery.
 - [api/calendar-settings.js](api/calendar-settings.js): Public read + admin write endpoint for the active Kashmir hijri month record.
 - [server/push-server.js](server/push-server.js): Local helper script for sending a test push notification.
 
-**Latest updates (May 2026)**
-- Startup/UX: the app now applies the saved dark theme before the first paint to avoid a brief light-mode flash on load, and the prayer times area shows a small "Loading prayer times..." placeholder until `data/table.json` hydrates.
-- Admin panel: UI refactor — all admin CSS moved into `styles.css` (admin-* classes), the calendar settings card is on the right, subscriptions/tools on the left (two-column responsive layout). The logout button appears in the top action row and the subscriptions list shows only a count by default; click "Refresh subscriptions" to list full details.
-- Calendar settings: `api/calendar-settings.js` (Firestore `calendar/kashmir`) is used to seed and persist the Kashmir hijri month (month name, hijri year, start date, month length). The admin form auto-loads settings on login.
-- Theme & accessibility: dark mode is the default and is preserved across reloads; icon inversion and coloring updated for consistent visibility.
+**Latest updates (June 2026)**
+- Donations: Added the donate page with several NGOs listed in the database with full details.
+- Zakat Calculator: Added a zakat calculator, with dynamic pricing updates for gold and silver (WIP).
+- UI changes: Moved dark mode and notification toggle inside navigation menu.
 
 **Data Format**
 - `table.json`
@@ -137,15 +140,14 @@ node server/push-server.js ./subscription.json
 - The push backend expects `web-push` and `firebase-admin` when the serverless endpoints are deployed.
 
 **Troubleshooting**
-- Icons look pale in dark mode: confirmed inversion via `.theme-dark .icon-img` and `.theme-dark .logo`.
-- README logo not visible in dark mode: the image now uses `icons/favicon-round.svg`, which has a white background for contrast.
 - Notification bells not clickable: ensure permissions are granted; otherwise the icons appear disabled.
 - Timetable not updating: verify `data/table.json` has a key for today in `DD-MM` format.
 - Changes not visible: perform a hard reload or clear the service worker cache.
+- Calculated zakat not accurate: Please understand that the zakat calculator is still a work in progress, as stated on the calculator page.
 
 **Contributing**
 - Issues and PRs are welcome for:
-	- Additional cities/offsets
+	- Additional cities/offsets and NGOs
 	- UI polish and accessibility
 	- Data corrections
 	- Performance and caching improvements
