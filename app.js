@@ -117,9 +117,29 @@ const menu = document.getElementById("menu");
 const menuBackdrop = document.getElementById("menuBackdrop");
 const mainPageLink = document.getElementById("mainPageLink");
 const donationsLink = document.getElementById("donationsLink");
+const zakatLink = document.getElementById("zakatLink");
 const mainPage = document.getElementById("mainPage");
 const donationsPage = document.getElementById("donationsPage");
+const zakatPage = document.getElementById("zakatPage");
 const ngoList = document.getElementById("ngoList");
+const zakatForm = document.getElementById("zakatForm");
+const zakatCash = document.getElementById("zakatCash");
+const zakatInvestments = document.getElementById("zakatInvestments");
+const zakatGoldValue = document.getElementById("zakatGoldValue");
+const zakatSilverValue = document.getElementById("zakatSilverValue");
+const zakatOtherAssets = document.getElementById("zakatOtherAssets");
+const zakatDebts = document.getElementById("zakatDebts");
+const zakatThresholdType = document.getElementById("zakatThresholdType");
+const zakatThresholdLabel = document.getElementById("zakatThresholdLabel");
+const zakatThresholdValue = document.getElementById("zakatThresholdValue");
+const zakatResult = document.getElementById("zakatResult");
+const zakatResetBtn = document.getElementById("zakatResetBtn");
+
+const ZAKAT_THRESHOLD_CACHE_KEY = "zakatThresholdValues";
+const ZAKAT_THRESHOLD_DEFAULTS = {
+  silver: 75000,
+  gold: 750000
+};
 
 // Menu toggle buttons (synced with topbar equivalents)
 const menuThemeToggle = document.getElementById("menuThemeToggle");
@@ -1379,9 +1399,116 @@ function switchToPage(pageId) {
   if (mainFooter) {
     mainFooter.style.display = pageId === 'mainPage' ? 'block' : 'none';
   }
+
+  if (pageId === 'zakatPage' && zakatResult) {
+    calculateZakat();
+  }
   
   // Close menu
   closeMenu();
+}
+
+function readNumberInput(input) {
+  const value = input ? parseFloat(String(input.value || '').trim()) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+function loadZakatThresholdCache() {
+  try {
+    const raw = localStorage.getItem(ZAKAT_THRESHOLD_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+function saveZakatThresholdCache(cache) {
+  try {
+    localStorage.setItem(ZAKAT_THRESHOLD_CACHE_KEY, JSON.stringify(cache || {}));
+  } catch (err) {}
+}
+
+function getZakatThresholdBasis() {
+  return zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
+}
+
+function syncZakatThresholdValue(force = false) {
+  if (!zakatThresholdValue) return;
+
+  const basis = getZakatThresholdBasis();
+  const cache = loadZakatThresholdCache();
+  const currentValue = readNumberInput(zakatThresholdValue);
+  const cachedValue = readNumberInput({ value: cache[basis] });
+  const nextValue = cachedValue > 0 ? cachedValue : ZAKAT_THRESHOLD_DEFAULTS[basis];
+
+  if (force || currentValue <= 0 || currentValue === cachedValue || currentValue === ZAKAT_THRESHOLD_DEFAULTS[basis]) {
+    zakatThresholdValue.value = String(nextValue);
+  }
+
+  updateZakatThresholdLabel();
+}
+
+function persistZakatThresholdValue() {
+  if (!zakatThresholdValue) return;
+  const basis = getZakatThresholdBasis();
+  const cache = loadZakatThresholdCache();
+  cache[basis] = readNumberInput(zakatThresholdValue);
+  saveZakatThresholdCache(cache);
+}
+
+function calculateZakat() {
+  if (!zakatResult) return;
+
+  const totalAssets = readNumberInput(zakatCash)
+    + readNumberInput(zakatInvestments)
+    + readNumberInput(zakatGoldValue)
+    + readNumberInput(zakatSilverValue)
+    + readNumberInput(zakatOtherAssets);
+  const debts = readNumberInput(zakatDebts);
+  const netAssets = Math.max(totalAssets - debts, 0);
+  const thresholdType = zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
+  const effectiveNisab = readNumberInput(zakatThresholdValue);
+  const isEligible = effectiveNisab > 0 ? netAssets >= effectiveNisab : netAssets > 0;
+  const zakatAmount = isEligible ? netAssets * 0.025 : 0;
+
+  zakatResult.innerHTML = `
+    <div class="zakat-summary ${isEligible ? 'eligible' : 'ineligible'}">
+      <strong>${isEligible ? 'Zakat due' : 'Below nisab'}</strong>
+      <div>Threshold basis: ${thresholdType === 'gold' ? 'Gold' : 'Silver'}</div>
+      <div>Total assets: ${formatMoney(totalAssets)}</div>
+      <div>Debts: ${formatMoney(debts)}</div>
+      <div>Net zakatable assets: ${formatMoney(netAssets)}</div>
+      <div>Nisab threshold: ${effectiveNisab > 0 ? formatMoney(effectiveNisab) : 'Not set'}</div>
+      <div class="zakat-total">Estimated zakat: ${formatMoney(zakatAmount)}</div>
+    </div>
+  `;
+}
+
+function resetZakatCalculator() {
+  [zakatCash, zakatInvestments, zakatGoldValue, zakatSilverValue, zakatOtherAssets, zakatDebts, zakatThresholdValue].forEach(input => {
+    if (input) input.value = '0';
+  });
+  if (zakatThresholdType) {
+    zakatThresholdType.value = 'silver';
+  }
+  saveZakatThresholdCache({});
+  updateZakatThresholdLabel();
+  syncZakatThresholdValue(true);
+  calculateZakat();
+}
+
+function updateZakatThresholdLabel() {
+  if (!zakatThresholdLabel || !zakatThresholdType) return;
+  zakatThresholdLabel.textContent = zakatThresholdType.value === 'gold' ? 'Gold nisab value' : 'Silver nisab value';
 }
 
 async function renderNGOList() {
@@ -1443,7 +1570,7 @@ async function renderNGOList() {
     const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
     content.innerHTML = `
       <h3>${escapeHtml(ngo.name || '')}</h3>
-      <div class="modal-row modal-location"><img src="icons/location.svg" class="modal-location-icon" alt="Location" width="14" height="14"/><span>${escapeHtml(ngo.city || '')}</span></div>
+      <div class="modal-row modal-location"><img src="icons/location.svg" class="icon-img modal-location-icon" alt="Location" width="14" height="14"/><span>${escapeHtml(ngo.city || '')}</span></div>
       <div class="modal-row">${escapeHtml(typesText)}</div>
       <div class="modal-row">${escapeHtml(ngo.description || '')}</div>
       <div class="modal-row">${renderAccountsHtml(ngo)}</div>
@@ -1560,6 +1687,44 @@ if (donationsLink) {
     renderNGOList();
     switchToPage('donationsPage');
   });
+}
+
+if (zakatLink) {
+  zakatLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchToPage('zakatPage');
+  });
+}
+
+if (zakatForm) {
+  zakatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    calculateZakat();
+  });
+}
+
+if (zakatResetBtn) {
+  zakatResetBtn.addEventListener('click', resetZakatCalculator);
+}
+
+[zakatCash, zakatInvestments, zakatGoldValue, zakatSilverValue, zakatOtherAssets, zakatDebts, zakatThresholdValue].forEach(input => {
+  if (input) {
+    input.addEventListener('input', () => {
+      if (input === zakatThresholdValue) persistZakatThresholdValue();
+      calculateZakat();
+    });
+  }
+});
+
+if (zakatThresholdType) {
+  zakatThresholdType.addEventListener('change', () => {
+    syncZakatThresholdValue();
+    calculateZakat();
+  });
+}
+
+if (zakatThresholdValue) {
+  syncZakatThresholdValue(true);
 }
 
 // Sync menu toggles with topbar equivalents

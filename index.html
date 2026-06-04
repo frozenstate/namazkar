@@ -58,6 +58,7 @@
       <ul class="menu-list">
         <li><a href="#" id="mainPageLink" class="menu-item"><img class="menu-item-icon" src="icons/mosque.svg" alt="" aria-hidden="true" width="16" height="16" /> Prayer Times</a></li>
         <li><a href="#" id="donationsLink" class="menu-item"><img class="menu-item-icon" src="icons/donate.svg" alt="" aria-hidden="true" width="16" height="16" /> Donate</a></li>
+        <li><a href="#" id="zakatLink" class="menu-item"><img class="menu-item-icon" src="icons/calculator.svg" alt="" aria-hidden="true" width="16" height="16" /> Zakat Calculator</a></li>
         <li class="menu-divider"></li>
         <li class="menu-setting">
           <div class="menu-item-row">
@@ -126,6 +127,70 @@
       </div>
       <p class="page-intro">Support local organizations working for the community in Kashmir Valley.</p>
       <div id="ngoList" class="ngo-list"></div>
+    </div>
+  </div>
+
+  <!-- Zakat Calculator Page -->
+  <div id="zakatPage" class="page">
+    <div class="container">
+      <div class="hero">
+        <h1>Zakat Calculator</h1>
+      </div>
+      <p class="page-intro">Estimate your zakat using assets, gold, silver, and debts. The calculation below uses the 2.5% zakat rate.</p>
+
+      <form id="zakatForm" class="zakat-card" novalidate>
+        <div class="zakat-grid">
+          <label class="zakat-field">
+            <span>Cash & savings</span>
+            <input id="zakatCash" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+          <label class="zakat-field">
+            <span>Investments / business</span>
+            <input id="zakatInvestments" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+          <label class="zakat-field">
+            <span>Gold value</span>
+            <input id="zakatGoldValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+          <label class="zakat-field">
+            <span>Silver value</span>
+            <input id="zakatSilverValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+          <label class="zakat-field">
+            <span>Other zakatable assets</span>
+            <input id="zakatOtherAssets" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+          <label class="zakat-field">
+            <span>Debts due now</span>
+            <input id="zakatDebts" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+        </div>
+
+        <div class="zakat-nisab">
+          <label class="zakat-field">
+            <span>Nisab basis</span>
+            <select id="zakatThresholdType">
+              <option value="silver" selected>Silver threshold</option>
+              <option value="gold">Gold threshold</option>
+            </select>
+          </label>
+          <label class="zakat-field">
+            <span id="zakatThresholdLabel">Silver nisab value</span>
+            <input id="zakatThresholdValue" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+          </label>
+        </div>
+
+        <p class="zakat-note">
+          Good live price sources: your local bullion/jewellery market, IBJA rates, MCX references, and trusted trackers such as Goodreturns. Use the same source consistently.
+        </p>
+
+        <div class="zakat-actions">
+          <button id="zakatCalculateBtn" class="details-btn" type="submit">Calculate zakat</button>
+          <button id="zakatResetBtn" class="zakat-reset-btn" type="button">Reset</button>
+        </div>
+
+        <div id="zakatResult" class="zakat-result" aria-live="polite"></div>
+      </form>
     </div>
   </div>
 
