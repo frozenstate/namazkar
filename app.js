@@ -1298,9 +1298,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 // Show install button on mobile even if beforeinstallprompt doesn't fire (Firefox, Brave)
-if (installBtn && detectMobileDevice()) {
+// Show install button by default (desktop + mobile) unless previously dismissed or app installed
+if (installBtn) {
   try {
-    if (!localStorage.getItem('pwaInstallPromptShown')) {
+    const inStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (!localStorage.getItem('pwaInstallPromptShown') && !inStandalone) {
       installBtn.classList.remove('hidden');
     }
   } catch (err) { /* ignore */ }
@@ -1385,6 +1387,17 @@ function switchToPage(pageId) {
 async function renderNGOList() {
   if (!ngoList) return;
 
+  // Ensure search input exists once
+  let searchInput = document.getElementById('ngoSearch');
+  const container = ngoList.parentElement;
+  if (!searchInput && container) {
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'ngo-search';
+    searchWrap.innerHTML = `<input id="ngoSearch" placeholder="Search organizations" aria-label="Search organizations" />`;
+    container.insertBefore(searchWrap, ngoList);
+    searchInput = document.getElementById('ngoSearch');
+  }
+
   ngoList.innerHTML = '';
 
   // Try to fetch donation data from data/donations.json, fallback to NGOS constant
@@ -1399,148 +1412,126 @@ async function renderNGOList() {
     // ignore, use fallback
   }
 
-  data.forEach(ngo => {
-    const card = document.createElement('div');
-    card.className = 'ngo-card';
-
-    const inner = document.createElement('div');
-    inner.className = 'ngo-card-inner';
-
-    const title = document.createElement('div');
-    title.className = 'ngo-card-title';
-    title.textContent = ngo.name || '';
-
-    const meta = document.createElement('div');
-    meta.className = 'ngo-meta';
-    const loc = document.createElement('div');
-    loc.className = 'loc';
-    loc.textContent = (ngo.city ? '📍 ' + ngo.city : '');
-
-    // determine donation types
-    const types = [];
-    if (ngo.zakaat && (ngo.zakaat.upi || (ngo.zakaat.bank && (ngo.zakaat.bank.account || ngo.zakaat.bank.ifsc)))) types.push('Zakat');
-    if (ngo.sadqa && (ngo.sadqa.upi || (ngo.sadqa.bank && (ngo.sadqa.bank.account || ngo.sadqa.bank.ifsc)))) types.push('Sadqa');
-    const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
-
-    const dtype = document.createElement('div');
-    dtype.className = 'donation-types';
-    dtype.textContent = typesText;
-
-    meta.appendChild(loc);
-    meta.appendChild(dtype);
-
-    const actions = document.createElement('div');
-    actions.className = 'ngo-actions';
-    const detailsBtn = document.createElement('button');
-    detailsBtn.className = 'details-btn';
-    detailsBtn.type = 'button';
-    detailsBtn.textContent = 'Details';
-    actions.appendChild(detailsBtn);
-
-    const details = document.createElement('div');
-    details.className = 'ngo-card-details';
-
-    // Zakaat
-    if (ngo.zakaat) {
-      const sec = document.createElement('div');
-      sec.className = 'account-section';
-      const atitle = document.createElement('div');
-      atitle.className = 'account-title';
-      atitle.textContent = 'Zakaat';
-      sec.appendChild(atitle);
-
-      if (ngo.zakaat.bank) {
-        const bankBtn = document.createElement('button');
-        bankBtn.className = 'account-action-btn';
-        bankBtn.type = 'button';
-        bankBtn.textContent = 'View bank';
-        const bankDetails = document.createElement('div');
-        bankDetails.className = 'bank-details';
-        bankDetails.innerHTML = `
-          <div class="account-detail"><span class="account-detail-label">Bank:</span> ${ngo.zakaat.bank.name || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">Account:</span> ${ngo.zakaat.bank.account || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">IFSC:</span> ${ngo.zakaat.bank.ifsc || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">Holder:</span> ${ngo.zakaat.bank.accountHolder || ''}</div>
-        `;
-        bankBtn.addEventListener('click', (e) => { e.stopPropagation(); bankDetails.classList.toggle('open'); });
-        sec.appendChild(bankBtn);
-        sec.appendChild(bankDetails);
-      }
-
-      if (ngo.zakaat.upi) {
-        const upiBtn = document.createElement('button');
-        upiBtn.className = 'account-action-btn';
-        upiBtn.type = 'button';
-        upiBtn.textContent = 'UPI';
-        const upiDetails = document.createElement('div');
-        upiDetails.className = 'upi-details';
-        upiDetails.innerHTML = `<a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.zakaat.upi)}&tn=Zakaat">Pay via UPI</a>`;
-        upiBtn.addEventListener('click', (e) => { e.stopPropagation(); upiDetails.classList.toggle('open'); });
-        sec.appendChild(upiBtn);
-        sec.appendChild(upiDetails);
-      }
-
-      details.appendChild(sec);
-    }
-
-    // Sadqa
-    if (ngo.sadqa) {
-      const sec = document.createElement('div');
-      sec.className = 'account-section';
-      const atitle = document.createElement('div');
-      atitle.className = 'account-title';
-      atitle.textContent = 'Sadqa';
-      sec.appendChild(atitle);
-
-      if (ngo.sadqa.bank) {
-        const bankBtn = document.createElement('button');
-        bankBtn.className = 'account-action-btn';
-        bankBtn.type = 'button';
-        bankBtn.textContent = 'View bank';
-        const bankDetails = document.createElement('div');
-        bankDetails.className = 'bank-details';
-        bankDetails.innerHTML = `
-          <div class="account-detail"><span class="account-detail-label">Bank:</span> ${ngo.sadqa.bank.name || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">Account:</span> ${ngo.sadqa.bank.account || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">IFSC:</span> ${ngo.sadqa.bank.ifsc || ''}</div>
-          <div class="account-detail"><span class="account-detail-label">Holder:</span> ${ngo.sadqa.bank.accountHolder || ''}</div>
-        `;
-        bankBtn.addEventListener('click', (e) => { e.stopPropagation(); bankDetails.classList.toggle('open'); });
-        sec.appendChild(bankBtn);
-        sec.appendChild(bankDetails);
-      }
-
-      if (ngo.sadqa.upi) {
-        const upiBtn = document.createElement('button');
-        upiBtn.className = 'account-action-btn';
-        upiBtn.type = 'button';
-        upiBtn.textContent = 'UPI';
-        const upiDetails = document.createElement('div');
-        upiDetails.className = 'upi-details';
-        upiDetails.innerHTML = `<a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.sadqa.upi)}&tn=Sadqa">Pay via UPI</a>`;
-        upiBtn.addEventListener('click', (e) => { e.stopPropagation(); upiDetails.classList.toggle('open'); });
-        sec.appendChild(upiBtn);
-        sec.appendChild(upiDetails);
-      }
-
-      details.appendChild(sec);
-    }
-
-    inner.appendChild(title);
-    inner.appendChild(meta);
-    inner.appendChild(actions);
-    inner.appendChild(details);
-    card.appendChild(inner);
-
-    // card expand/collapse
-    detailsBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const expanded = card.classList.toggle('expanded');
-      detailsBtn.textContent = expanded ? 'Close' : 'Details';
+  // Create or reuse modal backdrop
+  let modalBackdrop = document.getElementById('ngoModalBackdrop');
+  if (!modalBackdrop) {
+    modalBackdrop = document.createElement('div');
+    modalBackdrop.id = 'ngoModalBackdrop';
+    modalBackdrop.className = 'ngo-modal-backdrop';
+    modalBackdrop.innerHTML = `
+      <div class="ngo-modal" role="dialog" aria-modal="true">
+        <div id="ngoModalContent"></div>
+        <div class="modal-actions">
+          <button id="ngoModalClose" class="close-btn">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalBackdrop);
+    modalBackdrop.addEventListener('click', (ev) => {
+      if (ev.target === modalBackdrop) modalBackdrop.classList.remove('active');
     });
+    document.getElementById('ngoModalClose').addEventListener('click', () => modalBackdrop.classList.remove('active'));
+  }
 
-    ngoList.appendChild(card);
-  });
+  // Helper to open modal with details
+  function openNgoModal(ngo) {
+    const content = document.getElementById('ngoModalContent');
+    if (!content) return;
+    const types = [];
+    if (ngo.zakaat) types.push('Zakat');
+    if (ngo.sadqa) types.push('Sadqa');
+    const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
+    content.innerHTML = `
+      <h3>${escapeHtml(ngo.name || '')}</h3>
+      <div class="modal-row"><img src="icons/location.svg" class="loc-icon" alt="Location" width="14" height="14"/> ${escapeHtml(ngo.city || '')}</div>
+      <div class="modal-row">${escapeHtml(typesText)}</div>
+      <div class="modal-row">${escapeHtml(ngo.description || '')}</div>
+      <div class="modal-row">${renderAccountsHtml(ngo)}</div>
+    `;
+    modalBackdrop.classList.add('active');
+  }
+
+  function renderAccountsHtml(ngo) {
+    let out = '';
+    if (ngo.zakaat) {
+      out += `<div><strong>Zakaat</strong>`;
+      if (ngo.zakaat.bank) {
+        out += `<div>Bank: ${escapeHtml(ngo.zakaat.bank.name || '')}</div><div>Account: ${escapeHtml(ngo.zakaat.bank.account || '')}</div><div>IFSC: ${escapeHtml(ngo.zakaat.bank.ifsc || '')}</div><div>Holder: ${escapeHtml(ngo.zakaat.bank.accountHolder || '')}</div>`;
+      }
+      if (ngo.zakaat.upi) {
+        out += `<div><a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.zakaat.upi)}&tn=Zakaat">Pay via UPI</a></div>`;
+      }
+      out += `</div>`;
+    }
+    if (ngo.sadqa) {
+      out += `<div style="margin-top:0.5rem;"><strong>Sadqa</strong>`;
+      if (ngo.sadqa.bank) {
+        out += `<div>Bank: ${escapeHtml(ngo.sadqa.bank.name || '')}</div><div>Account: ${escapeHtml(ngo.sadqa.bank.account || '')}</div><div>IFSC: ${escapeHtml(ngo.sadqa.bank.ifsc || '')}</div><div>Holder: ${escapeHtml(ngo.sadqa.bank.accountHolder || '')}</div>`;
+      }
+      if (ngo.sadqa.upi) {
+        out += `<div><a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.sadqa.upi)}&tn=Sadqa">Pay via UPI</a></div>`;
+      }
+      out += `</div>`;
+    }
+    return out || '<div>No payment details provided.</div>';
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  function generateCards(list) {
+    ngoList.innerHTML = '';
+    list.forEach(ngo => {
+      const card = document.createElement('div');
+      card.className = 'ngo-card';
+      const inner = document.createElement('div');
+      inner.className = 'ngo-card-inner';
+      const title = document.createElement('div');
+      title.className = 'ngo-card-title';
+      title.textContent = ngo.name || '';
+      const meta = document.createElement('div');
+      meta.className = 'ngo-meta';
+      const loc = document.createElement('div');
+      loc.className = 'loc';
+      loc.innerHTML = `<img src="icons/location.svg" class="loc-icon" alt="Location" width="14" height="14"/> ${escapeHtml(ngo.city || '')}`;
+      const types = [];
+      if (ngo.zakaat) types.push('Zakat');
+      if (ngo.sadqa) types.push('Sadqa');
+      const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
+      const dtype = document.createElement('div');
+      dtype.className = 'donation-types';
+      dtype.textContent = typesText;
+      meta.appendChild(loc);
+      meta.appendChild(dtype);
+      const actions = document.createElement('div');
+      actions.className = 'ngo-actions';
+      const detailsBtn = document.createElement('button');
+      detailsBtn.className = 'details-btn';
+      detailsBtn.type = 'button';
+      detailsBtn.textContent = 'View details';
+      detailsBtn.addEventListener('click', (e) => { e.stopPropagation(); openNgoModal(ngo); });
+      actions.appendChild(detailsBtn);
+      inner.appendChild(title);
+      inner.appendChild(meta);
+      inner.appendChild(actions);
+      card.appendChild(inner);
+      ngoList.appendChild(card);
+    });
+  }
+
+  // initial render
+  generateCards(data);
+
+  // search handler
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const q = String(e.target.value || '').trim().toLowerCase();
+      if (!q) return generateCards(data);
+      const filtered = data.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.city && d.city.toLowerCase().includes(q)));
+      generateCards(filtered);
+    });
+  }
 }
 
 // Menu event listeners
