@@ -33,16 +33,16 @@
 <body>
   <header class="topbar">
     <div class="left">
-      <button id="current-date" class="date-toggle" type="button" aria-pressed="false" aria-label="Toggle calendar date"></button>
-      <span id="current-time"></span>
-    </div>
-    <div class="right">
-      <button id="installBtn" class="icon-button hidden" type="button" aria-label="Install app" title="Install app">
-        <img class="icon-img" src="icons/install.svg" alt="Install" width="20" height="20" />
-      </button>
       <button id="menuToggle" class="icon-button" type="button" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="menu">
         <img class="icon-img" src="icons/menu.svg" alt="Menu" width="20" height="20" />
       </button>
+      <button id="installBtn" class="icon-button hidden" type="button" aria-label="Install app" title="Install app">
+        <img class="icon-img" src="icons/install.svg" alt="Install" width="20" height="20" />
+      </button>
+    </div>
+    <div class="right">
+      <button id="current-date" class="date-toggle" type="button" aria-pressed="false" aria-label="Toggle calendar date"></button>
+      <span id="current-time"></span>
     </div>
   </header>
 
@@ -57,7 +57,7 @@
       </div>
       <ul class="menu-list">
         <li><a href="#" id="mainPageLink" class="menu-item">Prayer Times</a></li>
-        <li><a href="#" id="donationsLink" class="menu-item">Zakat & Sadqa</a></li>
+        <li><a href="#" id="donationsLink" class="menu-item">Donate</a></li>
         <li class="menu-divider"></li>
         <li class="menu-setting">
           <div class="menu-item-row">
@@ -122,7 +122,7 @@
   <div id="donationsPage" class="page">
     <div class="container">
       <div class="hero">
-        <h1>Zakat & Sadqa</h1>
+        <h1>Donations</h1>
       </div>
       <p class="page-intro">Support local organizations working for the community in Kashmir Valley.</p>
       <div id="ngoList" class="ngo-list"></div>

@@ -10,6 +10,7 @@ const CORE_ASSETS = [
   "/app.js",
   "/manifest.json",
   "/data/table.json",
+  "/data/donations.json",
   "/data/offset.json",
   "/icons/dark-mode.svg",
   "/icons/mosque.svg",
@@ -110,7 +111,27 @@ self.addEventListener("fetch", e => {
   if (requestUrl.origin !== self.location.origin) return;
 
   const path = requestUrl.pathname;
-  if (!CORE_ASSET_SET.has(path)) {
+  // Serve core assets from cache-first. Also handle donations.json with cache-then-network update.
+  if (!CORE_ASSET_SET.has(path) && path !== '/data/donations.json') {
+    return;
+  }
+
+  if (path === '/data/donations.json') {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) {
+          // update in background
+          fetch(e.request).then(resp => {
+            if (resp && resp.ok) caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
+          }).catch(() => {});
+          return cached;
+        }
+        return fetch(e.request).then(resp => {
+          if (resp && resp.ok) caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
+          return resp;
+        }).catch(() => new Response('[]', { headers: { 'Content-Type': 'application/json' } }));
+      })
+    );
     return;
   }
 

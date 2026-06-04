@@ -238,110 +238,121 @@ select, button {
   margin: 0.5rem 0 1.5rem;
 }
 
-/* NGO List Styles */
+/* NGO Grid Styles */
 .ngo-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
 
 .ngo-card {
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
+  border-radius: 8px;
   background: var(--card);
   cursor: pointer;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .ngo-card:hover {
+  transform: translateY(-4px);
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
 
-.ngo-card-header {
+.ngo-card-inner {
+  padding: 1rem;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  height: 100%;
 }
 
 .ngo-card-title {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
   margin: 0;
   text-align: left;
-  flex: 1;
 }
 
-.ngo-card-toggle {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 0;
-  flex-shrink: 0;
+.ngo-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.ngo-card-description {
+.loc {
   color: var(--muted);
   font-size: 0.9rem;
-  margin: 0.5rem 0 0;
-  text-align: left;
+}
+
+.donation-types {
+  font-size: 0.85rem;
+  color: var(--fg);
+  background: rgba(0,0,0,0.03);
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+}
+
+.ngo-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.details-btn {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
 }
 
 .ngo-card-details {
   display: none;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  padding: 0.75rem 1rem 1rem 1rem;
   border-top: 1px solid var(--border);
 }
 
-.ngo-card-details.expanded {
+.ngo-card.expanded .ngo-card-details {
   display: block;
 }
 
 .account-section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .account-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin: 0.5rem 0;
-  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 0 0 0.4rem 0;
   color: var(--accent);
 }
 
-.account-detail {
+.bank-details, .upi-details {
+  display: none;
+  margin-top: 0.4rem;
   font-size: 0.85rem;
-  margin: 0.4rem 0;
-  text-align: left;
-  word-break: break-all;
-}
-
-.account-detail-label {
   color: var(--muted);
-  font-size: 0.8rem;
 }
 
-.account-link {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--accent);
-  color: white;
-  text-decoration: none;
+.bank-details.open, .upi-details.open {
+  display: block;
+}
+
+.account-action-btn {
+  padding: 0.4rem 0.6rem;
   border-radius: 6px;
-  font-size: 0.85rem;
-  transition: opacity 200ms ease;
-}
-
-.account-link:hover {
-  opacity: 0.8;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  margin-right: 0.4rem;
 }
 
 .topbar .right { gap: 0.25rem; }

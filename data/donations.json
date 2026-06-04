@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "Kashmir Relief Trust",
+    "city": "Srinagar",
+    "description": "Emergency relief and community support across Srinagar.",
+    "zakaat": {
+      "bank": {
+        "name": "J&K Bank",
+        "account": "123456789012",
+        "ifsc": "JAKA0000123",
+        "accountHolder": "Kashmir Relief Trust"
+      },
+      "upi": "kashmirrelief@upi"
+    },
+    "sadqa": {
+      "bank": {
+        "name": "State Bank of India",
+        "account": "098765432109",
+        "ifsc": "SBIN0000456",
+        "accountHolder": "Kashmir Relief Trust"
+      },
+      "upi": "kashmir.sadqa@upi"
+    }
+  },
+  {
+    "id": 2,
+    "name": "Valley Aid",
+    "city": "Baramulla",
+    "description": "Local community projects and medical aid.",
+    "zakaat": {
+      "bank": null,
+      "upi": "valleyaid@upi"
+    },
+    "sadqa": null
+  },
+  {
+    "id": 3,
+    "name": "Mountain Community Care",
+    "city": "Kupwara",
+    "description": "Education and youth programs in mountain villages.",
+    "zakaat": null,
+    "sadqa": {
+      "bank": {
+        "name": "Central Bank of India",
+        "account": "445566778899",
+        "ifsc": "CBIN0000789",
+        "accountHolder": "Mountain Community Care"
+      },
+      "upi": null
+    }
+  },
+  {
+    "id": 4,
+    "name": "Youth Welfare Foundation",
+    "city": "Anantnag",
+    "description": "Skills training and youth outreach programs.",
+    "zakaat": {
+      "bank": {
+        "name": "J&K Bank",
+        "account": "112233445566",
+        "ifsc": "JAKA0000999",
+        "accountHolder": "Youth Welfare Foundation"
+      },
+      "upi": "ywf.zakaat@upi"
+    },
+    "sadqa": {
+      "bank": null,
+      "upi": "ywf.sadqa@upi"
+    }
+  }
+]

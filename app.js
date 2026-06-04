@@ -1382,101 +1382,163 @@ function switchToPage(pageId) {
   closeMenu();
 }
 
-function renderNGOList() {
+async function renderNGOList() {
   if (!ngoList) return;
-  
+
   ngoList.innerHTML = '';
-  
-  NGOS.forEach(ngo => {
+
+  // Try to fetch donation data from data/donations.json, fallback to NGOS constant
+  let data = NGOS;
+  try {
+    const res = await fetch('/data/donations.json');
+    if (res.ok) {
+      const parsed = await res.json();
+      if (Array.isArray(parsed) && parsed.length) data = parsed;
+    }
+  } catch (err) {
+    // ignore, use fallback
+  }
+
+  data.forEach(ngo => {
     const card = document.createElement('div');
     card.className = 'ngo-card';
-    
-    const header = document.createElement('div');
-    header.className = 'ngo-card-header';
-    
-    const title = document.createElement('h3');
+
+    const inner = document.createElement('div');
+    inner.className = 'ngo-card-inner';
+
+    const title = document.createElement('div');
     title.className = 'ngo-card-title';
-    title.textContent = ngo.name;
-    
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'ngo-card-toggle';
-    toggleBtn.type = 'button';
-    toggleBtn.textContent = '▼';
-    toggleBtn.setAttribute('aria-expanded', 'false');
-    
-    header.appendChild(title);
-    header.appendChild(toggleBtn);
-    
-    const description = document.createElement('p');
-    description.className = 'ngo-card-description';
-    description.textContent = ngo.description;
-    
+    title.textContent = ngo.name || '';
+
+    const meta = document.createElement('div');
+    meta.className = 'ngo-meta';
+    const loc = document.createElement('div');
+    loc.className = 'loc';
+    loc.textContent = (ngo.city ? '📍 ' + ngo.city : '');
+
+    // determine donation types
+    const types = [];
+    if (ngo.zakaat && (ngo.zakaat.upi || (ngo.zakaat.bank && (ngo.zakaat.bank.account || ngo.zakaat.bank.ifsc)))) types.push('Zakat');
+    if (ngo.sadqa && (ngo.sadqa.upi || (ngo.sadqa.bank && (ngo.sadqa.bank.account || ngo.sadqa.bank.ifsc)))) types.push('Sadqa');
+    const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
+
+    const dtype = document.createElement('div');
+    dtype.className = 'donation-types';
+    dtype.textContent = typesText;
+
+    meta.appendChild(loc);
+    meta.appendChild(dtype);
+
+    const actions = document.createElement('div');
+    actions.className = 'ngo-actions';
+    const detailsBtn = document.createElement('button');
+    detailsBtn.className = 'details-btn';
+    detailsBtn.type = 'button';
+    detailsBtn.textContent = 'Details';
+    actions.appendChild(detailsBtn);
+
     const details = document.createElement('div');
     details.className = 'ngo-card-details';
-    
-    // Zakaat section
-    const zakaat = document.createElement('div');
-    zakaat.className = 'account-section';
-    zakaat.innerHTML = `
-      <div class="account-title">Zakaat Account</div>
-      <div class="account-detail">
-        <div class="account-detail-label">Bank Name:</div>
-        ${ngo.zakaat.bank.name}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">Account:</div>
-        ${ngo.zakaat.bank.account}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">IFSC:</div>
-        ${ngo.zakaat.bank.ifsc}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">Account Holder:</div>
-        ${ngo.zakaat.bank.accountHolder}
-      </div>
-      ${ngo.zakaat.upi ? `<a href="upi://pay?pa=${ngo.zakaat.upi}&tn=Zakaat" class="account-link">Pay via UPI</a>` : ''}
-    `;
-    
-    // Sadqa section
-    const sadqa = document.createElement('div');
-    sadqa.className = 'account-section';
-    sadqa.innerHTML = `
-      <div class="account-title">Sadqa Account</div>
-      <div class="account-detail">
-        <div class="account-detail-label">Bank Name:</div>
-        ${ngo.sadqa.bank.name}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">Account:</div>
-        ${ngo.sadqa.bank.account}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">IFSC:</div>
-        ${ngo.sadqa.bank.ifsc}
-      </div>
-      <div class="account-detail">
-        <div class="account-detail-label">Account Holder:</div>
-        ${ngo.sadqa.bank.accountHolder}
-      </div>
-      ${ngo.sadqa.upi ? `<a href="upi://pay?pa=${ngo.sadqa.upi}&tn=Sadqa" class="account-link">Pay via UPI</a>` : ''}
-    `;
-    
-    details.appendChild(zakaat);
-    details.appendChild(sadqa);
-    
-    card.appendChild(header);
-    card.appendChild(description);
-    card.appendChild(details);
-    
-    // Toggle details on card click
-    toggleBtn.addEventListener('click', () => {
-      const isExpanded = details.classList.contains('expanded');
-      details.classList.toggle('expanded');
-      toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
-      toggleBtn.textContent = isExpanded ? '▼' : '▲';
+
+    // Zakaat
+    if (ngo.zakaat) {
+      const sec = document.createElement('div');
+      sec.className = 'account-section';
+      const atitle = document.createElement('div');
+      atitle.className = 'account-title';
+      atitle.textContent = 'Zakaat';
+      sec.appendChild(atitle);
+
+      if (ngo.zakaat.bank) {
+        const bankBtn = document.createElement('button');
+        bankBtn.className = 'account-action-btn';
+        bankBtn.type = 'button';
+        bankBtn.textContent = 'View bank';
+        const bankDetails = document.createElement('div');
+        bankDetails.className = 'bank-details';
+        bankDetails.innerHTML = `
+          <div class="account-detail"><span class="account-detail-label">Bank:</span> ${ngo.zakaat.bank.name || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">Account:</span> ${ngo.zakaat.bank.account || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">IFSC:</span> ${ngo.zakaat.bank.ifsc || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">Holder:</span> ${ngo.zakaat.bank.accountHolder || ''}</div>
+        `;
+        bankBtn.addEventListener('click', (e) => { e.stopPropagation(); bankDetails.classList.toggle('open'); });
+        sec.appendChild(bankBtn);
+        sec.appendChild(bankDetails);
+      }
+
+      if (ngo.zakaat.upi) {
+        const upiBtn = document.createElement('button');
+        upiBtn.className = 'account-action-btn';
+        upiBtn.type = 'button';
+        upiBtn.textContent = 'UPI';
+        const upiDetails = document.createElement('div');
+        upiDetails.className = 'upi-details';
+        upiDetails.innerHTML = `<a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.zakaat.upi)}&tn=Zakaat">Pay via UPI</a>`;
+        upiBtn.addEventListener('click', (e) => { e.stopPropagation(); upiDetails.classList.toggle('open'); });
+        sec.appendChild(upiBtn);
+        sec.appendChild(upiDetails);
+      }
+
+      details.appendChild(sec);
+    }
+
+    // Sadqa
+    if (ngo.sadqa) {
+      const sec = document.createElement('div');
+      sec.className = 'account-section';
+      const atitle = document.createElement('div');
+      atitle.className = 'account-title';
+      atitle.textContent = 'Sadqa';
+      sec.appendChild(atitle);
+
+      if (ngo.sadqa.bank) {
+        const bankBtn = document.createElement('button');
+        bankBtn.className = 'account-action-btn';
+        bankBtn.type = 'button';
+        bankBtn.textContent = 'View bank';
+        const bankDetails = document.createElement('div');
+        bankDetails.className = 'bank-details';
+        bankDetails.innerHTML = `
+          <div class="account-detail"><span class="account-detail-label">Bank:</span> ${ngo.sadqa.bank.name || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">Account:</span> ${ngo.sadqa.bank.account || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">IFSC:</span> ${ngo.sadqa.bank.ifsc || ''}</div>
+          <div class="account-detail"><span class="account-detail-label">Holder:</span> ${ngo.sadqa.bank.accountHolder || ''}</div>
+        `;
+        bankBtn.addEventListener('click', (e) => { e.stopPropagation(); bankDetails.classList.toggle('open'); });
+        sec.appendChild(bankBtn);
+        sec.appendChild(bankDetails);
+      }
+
+      if (ngo.sadqa.upi) {
+        const upiBtn = document.createElement('button');
+        upiBtn.className = 'account-action-btn';
+        upiBtn.type = 'button';
+        upiBtn.textContent = 'UPI';
+        const upiDetails = document.createElement('div');
+        upiDetails.className = 'upi-details';
+        upiDetails.innerHTML = `<a class="account-link" href="upi://pay?pa=${encodeURIComponent(ngo.sadqa.upi)}&tn=Sadqa">Pay via UPI</a>`;
+        upiBtn.addEventListener('click', (e) => { e.stopPropagation(); upiDetails.classList.toggle('open'); });
+        sec.appendChild(upiBtn);
+        sec.appendChild(upiDetails);
+      }
+
+      details.appendChild(sec);
+    }
+
+    inner.appendChild(title);
+    inner.appendChild(meta);
+    inner.appendChild(actions);
+    inner.appendChild(details);
+    card.appendChild(inner);
+
+    // card expand/collapse
+    detailsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const expanded = card.classList.toggle('expanded');
+      detailsBtn.textContent = expanded ? 'Close' : 'Details';
     });
-    
+
     ngoList.appendChild(card);
   });
 }
