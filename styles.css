@@ -325,10 +325,11 @@ select, button {
 }
 
 .loc-icon {
+  display: inline-block;
   width: 14px;
   height: 14px;
   vertical-align: -2px;
-  margin-right: 0.2rem;
+  margin-right: 0.3rem;
 }
 
 .loc-text {
