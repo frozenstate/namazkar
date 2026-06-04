@@ -63,7 +63,7 @@ select, button {
 .topbar .left, .topbar .right { display: flex; gap: 0.5rem; align-items: center; }
 .topbar .left { min-width: 0; }
 .topbar .left { align-items: center; }
-.topbar .right { gap: 0.5rem; justify-content: flex-end; }
+.topbar .right { gap: 0.25rem; justify-content: flex-end; display: flex; flex-direction: column; align-items: flex-end; }
 .topbar #current-date, .topbar #current-time { color: var(--muted); display: inline-flex; align-items: center; }
 
 /* Menu Styles */
@@ -405,12 +405,18 @@ select, button {
   align-items: center;
   gap: 0.35rem;
   cursor: pointer;
-  text-align: center;
+  text-align: right;
   transition: color 180ms ease, opacity 180ms ease;
   max-width: min(46vw, 18rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.topbar #current-time {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 0.08rem;
 }
 .date-toggle:hover {
   color: var(--accent);
