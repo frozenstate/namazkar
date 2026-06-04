@@ -1432,7 +1432,8 @@ function calculateZakat() {
     + (readNumberInput(zakatGoldOwned) * readNumberInput(zakatGoldCost))
     + (readNumberInput(zakatSilverOwned) * readNumberInput(zakatSilverCost))
     + readNumberInput(zakatOtherAssets)
-    + readNumberInput(zakatLent);
+    + readNumberInput(zakatLent)
+    - readNumberInput(zakatDebts);
   const expenses = readNumberInput(zakatExpenses);
   const netAssets = Math.max(grossAssets - expenses, 0);
   const thresholdType = zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
@@ -1450,6 +1451,7 @@ function calculateZakat() {
       <div>Gross assets before expenses: ${formatMoney(grossAssets)}</div>
       <div>Average monthly expenses: ${formatMoney(expenses)}</div>
       <div>Amount lent: ${formatMoney(readNumberInput(zakatLent))}</div>
+      <div>Amount owed (debts): ${formatMoney(readNumberInput(zakatDebts))}</div>
       <div>Net zakatable assets: ${formatMoney(netAssets)}</div>
       <div>Nisab threshold: ${effectiveNisab > 0 ? formatMoney(effectiveNisab) : 'Not set'}</div>
       <div class="zakat-total">Estimated zakat: ${formatMoney(zakatAmount)}</div>
@@ -1458,7 +1460,7 @@ function calculateZakat() {
 }
 
 function resetZakatCalculator() {
-  [zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatGoldCost, zakatSilverCost].forEach(input => {
+  [zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatDebts,zakatGoldCost, zakatSilverCost].forEach(input => {
     if (input) input.value = '0';
   });
   if (zakatThresholdType) {
