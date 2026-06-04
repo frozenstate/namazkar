@@ -164,8 +164,12 @@ select, button {
   vertical-align: -2px;
   margin-right: 0.5rem;
   flex: 0 0 auto;
-  filter: grayscale(100%) brightness(0.85);
+  display: inline-block;
+  filter: invert(0);
+  transition: filter 120ms ease;
 }
+
+.theme-dark .menu-item-icon { filter: invert(1); }
 
 .menu-divider {
   height: 1px;
