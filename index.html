@@ -125,7 +125,7 @@
       <div class="hero">
         <h1>Donations</h1>
       </div>
-      <p class="page-intro">Support local organizations working for the community in Kashmir Valley.</p>
+      <p class="page-intro">Pay your zakat and sadqa to local organizations.</p>
       <div id="ngoList" class="ngo-list"></div>
     </div>
   </div>
@@ -136,7 +136,10 @@
       <div class="hero">
         <h1>Zakat Calculator</h1>
       </div>
-      <p class="page-intro">Estimate your zakat using assets, gold, silver, and debts. The calculation below uses the 2.5% zakat rate.</p>
+      <p class="page-intro">Estimate your zakat using assets, gold, silver, and debts. Zakat is calculated at 2.5% of your net zakatable assets.</p>
+      <p class="zakat-note">
+          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
+        </p>
 
       <form id="zakatForm" class="zakat-card" novalidate>
         <div class="zakat-grid">
@@ -146,9 +149,9 @@
             <small class="zakat-help">Money currently available in hand or bank.</small>
           </label>
           <label class="zakat-field">
-            <span>Investments / business</span>
-            <input id="zakatInvestments" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
-            <small class="zakat-help">Zakatable investments and business assets.</small>
+            <span>Average Monthly Expenses</span>
+            <input id="zakatExpenses" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Immediate spending needs that reduce zakatable assets.</small>
           </label>
           <label class="zakat-field">
             <span>Gold owned (g)</span>
@@ -161,14 +164,14 @@
             <small class="zakat-help">Weight of silver you own, in grams.</small>
           </label>
           <label class="zakat-field">
+            <span>Investments / business</span>
+            <input id="zakatInvestments" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <small class="zakat-help">Zakatable investments (e.g. land purchased with the intent of resale) and other business assets.</small>
+          </label>
+          <label class="zakat-field">
             <span>Other zakatable assets</span>
             <input id="zakatOtherAssets" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
             <small class="zakat-help">Any other assets counted in zakat.</small>
-          </label>
-          <label class="zakat-field">
-            <span>Average Monthly Expenses</span>
-            <input id="zakatExpenses" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
-            <small class="zakat-help">Immediate spending needs that reduce zakatable assets.</small>
           </label>
           <label class="zakat-field">
             <span>Amount lent</span>
@@ -184,36 +187,32 @@
 
         <div class="zakat-nisab">
           <label class="zakat-field">
-            <span>Nisab basis</span>
-            <select id="zakatThresholdType">
-              <option value="silver" selected>Silver threshold</option>
-              <option value="gold">Gold threshold</option>
-            </select>
-            <small class="zakat-help">Choose which metal threshold to use.</small>
-          </label>
-          <label class="zakat-field">
             <span>Gold Cost (per g)</span>
             <input id="zakatGoldCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
-            <small class="zakat-help">Editable per-gram gold price. Auto-fill can be added later.</small>
+            <small class="zakat-help">Local gold price (per gram).</small>
           </label>
           <label class="zakat-field">
             <span>Silver Cost (per g)</span>
             <input id="zakatSilverCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
-            <small class="zakat-help">Editable per-gram silver price. Auto-fill can be added later.</small>
+            <small class="zakat-help">Local silver price (per gram).</small>
+          </label>
+          <label class="zakat-field">
+            <span>Nisab basis</span>
+            <select id="zakatThresholdType">
+              <option value="silver" selected>Silver</option>
+              <option value="gold">Gold</option>
+            </select>
+            <small class="zakat-help">Choose which nisab threshold to use. Local scholars recommend using the silver threshold.</small>
           </label>
         </div>
 
         <p class="zakat-note">
-          Nisab is fixed at 612.36 g of silver or 87.48 g of gold. The calculator multiplies that weight by the chosen metal price per gram.
-        </p>
-
-        <p class="zakat-note">
-          Good live price sources: your local bullion/jewellery market, IBJA rates, MCX references, and trusted trackers such as Goodreturns. Use the same source consistently.
+          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
         </p>
 
         <div class="zakat-actions">
           <button id="zakatCalculateBtn" class="details-btn" type="submit">Calculate zakat</button>
-          <button id="zakatResetBtn" class="zakat-reset-btn" type="button">Reset</button>
+          <button id="zakatResetBtn" class="zakat-reset-btn" type="button">Reset fields</button>
         </div>
 
         <div id="zakatResult" class="zakat-result" aria-live="polite"></div>
