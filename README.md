@@ -24,7 +24,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - **Daily timetable:** Renders today's times from [data/table.json](data/table.json) using the DD-MM date key.
 - **City offsets:** Applies per-city minute offsets from [data/offset.json](data/offset.json).
 - **NGO database:** Donate to local organizations, via UPI handles and bank accounts [data/donations.json] (data/donations.json).
-- **Zakat calculator (WIP):** Calculate zakat for your assets~, with dynamically updating local gold and silver prices~.
+- **Zakat calculator (WIP):** Calculate zakat for your assets ~, with dynamically updating local gold and silver prices~ .
 - **Next prayer:** Shows the next upcoming prayer with a live countdown.
 - **Notifications:** Global enable + per-prayer toggles, with foreground timers and Web Push support for background delivery (PWAs on iOS do not support background notifications, this is an OS limitation).
 - **Calendar toggle:** The top-bar date defaults to the Kashmir hijri month record and can be toggled to Gregorian with a click.
