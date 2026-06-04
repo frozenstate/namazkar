@@ -1494,7 +1494,7 @@ async function renderNGOList() {
       meta.className = 'ngo-meta';
       const loc = document.createElement('div');
       loc.className = 'loc';
-      loc.innerHTML = `<img src="icons/location.svg" class="loc-icon" alt="Location" width="14" height="14"/> ${escapeHtml(ngo.city || '')}`;
+      loc.innerHTML = `<img src="icons/location.svg" class="icon-img loc-icon" alt="Location" width="14" height="14"/> ${escapeHtml(ngo.city || '')}`;
       const types = [];
       if (ngo.zakaat) types.push('Zakat');
       if (ngo.sadqa) types.push('Sadqa');

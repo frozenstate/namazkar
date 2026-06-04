@@ -298,6 +298,11 @@ select, button {
   font-size: 0.98rem;
   margin: 0;
   text-align: center;
+  min-height: 2.3em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   word-break: break-word;
   line-height: 1.15;
 }
@@ -325,7 +330,6 @@ select, button {
 .loc-icon {
   width: 14px;
   height: 14px;
-  filter: grayscale(100%) brightness(0) invert(0.95) opacity(0.9);
 }
 
 .donation-types {
