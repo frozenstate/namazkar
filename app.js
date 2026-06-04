@@ -1443,7 +1443,7 @@ async function renderNGOList() {
     const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
     content.innerHTML = `
       <h3>${escapeHtml(ngo.name || '')}</h3>
-      <div class="modal-row"><img src="icons/location.svg" class="loc-icon" alt="Location" width="14" height="14"/> ${escapeHtml(ngo.city || '')}</div>
+      <div class="modal-row modal-location"><img src="icons/location.svg" class="modal-location-icon" alt="Location" width="14" height="14"/><span>${escapeHtml(ngo.city || '')}</span></div>
       <div class="modal-row">${escapeHtml(typesText)}</div>
       <div class="modal-row">${escapeHtml(ngo.description || '')}</div>
       <div class="modal-row">${renderAccountsHtml(ngo)}</div>
@@ -1493,8 +1493,8 @@ async function renderNGOList() {
       const meta = document.createElement('div');
       meta.className = 'ngo-meta';
       const loc = document.createElement('div');
-      loc.className = 'loc';
-      loc.innerHTML = `<img src="icons/location.svg" class="icon-img loc-icon" alt="Location" width="14" height="14"/><span class="loc-text">${escapeHtml(ngo.city || '')}</span>`;
+      loc.className = 'donate-location';
+      loc.innerHTML = `<img src="icons/location.svg" class="icon-img donate-location-icon" alt="Location" width="12" height="12"/><span class="donate-location-text">${escapeHtml(ngo.city || '')}</span>`;
       const types = [];
       if (ngo.zakaat) types.push('Zakat');
       if (ngo.sadqa) types.push('Sadqa');
