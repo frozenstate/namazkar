@@ -106,6 +106,9 @@ const nextCountdownEl = document.getElementById("next-countdown");
 const offsetText = document.getElementById("offset-text");
 const toastContainer = document.getElementById("toast-container");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+// legacy topbar notification & theme buttons (may be absent when moved into menu)
+const notifyGlobal = document.getElementById("notifyGlobal");
+const themeToggle = document.getElementById("themeToggle");
 
 // Menu elements
 const menuToggle = document.getElementById("menuToggle");
