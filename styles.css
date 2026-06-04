@@ -158,6 +158,15 @@ select, button {
   border-left-color: var(--accent);
 }
 
+.menu-item-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: -2px;
+  margin-right: 0.5rem;
+  flex: 0 0 auto;
+  filter: grayscale(100%) brightness(0.85);
+}
+
 .menu-divider {
   height: 1px;
   background: var(--border);
@@ -179,6 +188,9 @@ select, button {
   flex: 1;
   text-align: left;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .toggle-btn {
