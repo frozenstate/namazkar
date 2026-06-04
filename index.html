@@ -37,56 +37,99 @@
       <span id="current-time"></span>
     </div>
     <div class="right">
-      <button id="notifyGlobal" class="icon-button" type="button" aria-label="Enable notifications" title="Enable notifications">
-        <img class="icon-img" src="icons/bell-slash.svg" alt="Notifications" width="20" height="20" />
-      </button>
-      <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
-        <img class="icon-img" src="icons/dark-mode.svg" alt="Dark mode" width="20" height="20" />
-      </button>
       <button id="installBtn" class="icon-button hidden" type="button" aria-label="Install app" title="Install app">
         <img class="icon-img" src="icons/install.svg" alt="Install" width="20" height="20" />
+      </button>
+      <button id="menuToggle" class="icon-button" type="button" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="menu">
+        <img class="icon-img" src="icons/menu.svg" alt="Menu" width="20" height="20" />
       </button>
     </div>
   </header>
 
-  <div class="container">
-    <div class="hero">
-      <img src="icons/mosque.svg" alt="Namaz Kar Logo" class="logo" />
-      <h1>Namaz Kar?</h1>
+  <!-- Navigation Menu (Hidden by default) -->
+  <nav id="menu" class="menu" aria-hidden="true">
+    <div class="menu-content">
+      <div class="menu-header">
+        <h2>Namaz Kar</h2>
+        <button id="menuClose" class="menu-close" type="button" aria-label="Close menu">
+          <img class="icon-img" src="icons/close.svg" alt="Close" width="20" height="20" />
+        </button>
+      </div>
+      <ul class="menu-list">
+        <li><a href="#" id="mainPageLink" class="menu-item">Prayer Times</a></li>
+        <li><a href="#" id="donationsLink" class="menu-item">Zakat & Sadqa</a></li>
+        <li class="menu-divider"></li>
+        <li class="menu-setting">
+          <div class="menu-item-row">
+            <label for="menuNotifyToggle">Notifications</label>
+            <button id="menuNotifyToggle" class="toggle-btn" type="button" aria-label="Toggle notifications"></button>
+          </div>
+        </li>
+        <li class="menu-setting">
+          <div class="menu-item-row">
+            <label for="menuThemeToggle">Dark Mode</label>
+            <button id="menuThemeToggle" class="toggle-btn" type="button" aria-label="Toggle dark mode"></button>
+          </div>
+        </li>
+      </ul>
     </div>
+  </nav>
 
-  <div id="toast-container" class="toast-container"></div>
+  <!-- Overlay for menu backdrop -->
+  <div id="menuBackdrop" class="menu-backdrop" aria-hidden="true"></div>
 
-  <div class="region">
-    <span id="offset-text" class="offset-text" title="Region offset">+0 min</span>
-    <div class="city-picker" id="cityPicker">
-      <div class="city-search-wrap">
-        <input id="citySearch" class="city-search" type="text" aria-label="Search region" autocomplete="off" placeholder="Search regions" />
-        <div id="cityResults" class="city-results" role="listbox" aria-label="Region search results"></div>
+  <!-- Main Page Content -->
+  <div id="mainPage" class="page active">
+    <div class="container">
+      <div class="hero">
+        <img src="icons/mosque.svg" alt="Namaz Kar Logo" class="logo" />
+        <h1>Namaz Kar?</h1>
+      </div>
+
+      <div id="toast-container" class="toast-container"></div>
+
+      <div class="region">
+        <span id="offset-text" class="offset-text" title="Region offset">+0 min</span>
+        <div class="city-picker" id="cityPicker">
+          <div class="city-search-wrap">
+            <input id="citySearch" class="city-search" type="text" aria-label="Search region" autocomplete="off" placeholder="Search regions" />
+            <div id="cityResults" class="city-results" role="listbox" aria-label="Region search results"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="next-prayer" class="next-card" aria-live="polite">
+        <div class="row">
+          <strong class="name">Next: <span id="next-name">—</span></strong>
+          <span class="time-value"><span id="next-time">--:--</span></span>
+        </div>
+        <small id="next-countdown">—</small>
+      </div>
+
+      <div class="times" id="times" aria-busy="true">
+        <p class="times-loading">Loading prayer times...</p>
+      </div>
+
+      <div class="settings">
+        <p><small>
+          Based on the Dar-ul-Uloom Rahimiyyah timetable.
+        </small></p>
       </div>
     </div>
   </div>
 
-  <div id="next-prayer" class="next-card" aria-live="polite">
-    <div class="row">
-      <strong class="name">Next: <span id="next-name">—</span></strong>
-      <span class="time-value"><span id="next-time">--:--</span></span>
+  <!-- Donations Page -->
+  <div id="donationsPage" class="page">
+    <div class="container">
+      <div class="hero">
+        <h1>Zakat & Sadqa</h1>
+      </div>
+      <p class="page-intro">Support local organizations working for the community in Kashmir Valley.</p>
+      <div id="ngoList" class="ngo-list"></div>
     </div>
-    <small id="next-countdown">—</small>
   </div>
 
-  <div class="times" id="times" aria-busy="true">
-    <p class="times-loading">Loading prayer times...</p>
-  </div>
-
-  <div class="settings">
-    <p><small>
-      Based on the Dar-ul-Uloom Rahimiyyah timetable.
-    </small></p>
-  </div>
-  </div>
-
-  <footer class="page-footer" aria-label="App dedication">
+  <footer class="page-footer" aria-label="App dedication" id="mainPageFooter">
     Lovingly dedicated to my family, whose love, support, and guidance shaped who I am today.
   </footer>
 

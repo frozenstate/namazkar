@@ -65,6 +65,287 @@ select, button {
 .topbar .left { align-items: baseline; }
 .topbar .right { gap: 0.25rem; }
 .topbar #current-date, .topbar #current-time { color: var(--muted); }
+
+/* Menu Styles */
+.menu {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: min(80vw, 300px);
+  height: 100vh;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  transition: left 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 999;
+  overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+}
+
+.menu.active {
+  left: 0;
+}
+
+.menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 300ms ease, visibility 300ms ease;
+  z-index: 998;
+}
+
+.menu-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-content {
+  padding: 1rem 0;
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+
+.menu-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.menu-close {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 150ms ease;
+}
+
+.menu-close:hover {
+  background: var(--highlight);
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-item {
+  display: block;
+  padding: 0.75rem 1rem;
+  color: var(--fg);
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
+  border-left: 3px solid transparent;
+}
+
+.menu-item:hover {
+  background: var(--highlight);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 0;
+}
+
+.menu-setting {
+  padding: 0.5rem 1rem;
+}
+
+.menu-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-item-row label {
+  flex: 1;
+  text-align: left;
+  font-weight: 500;
+}
+
+.toggle-btn {
+  width: 44px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.toggle-btn::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: var(--fg);
+  border-radius: 50%;
+  top: 1px;
+  left: 1px;
+  transition: left 200ms ease;
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle-btn.active::after {
+  left: 21px;
+}
+
+/* Page System */
+.page {
+  display: none;
+  animation: fadeIn 300ms ease;
+}
+
+.page.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-intro {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+/* NGO List Styles */
+.ngo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.ngo-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.ngo-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.ngo-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ngo-card-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.ngo-card-toggle {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.ngo-card-description {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+  text-align: left;
+}
+
+.ngo-card-details {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.ngo-card-details.expanded {
+  display: block;
+}
+
+.account-section {
+  margin-bottom: 1rem;
+}
+
+.account-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.account-detail {
+  font-size: 0.85rem;
+  margin: 0.4rem 0;
+  text-align: left;
+  word-break: break-all;
+}
+
+.account-detail-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.account-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  transition: opacity 200ms ease;
+}
+
+.account-link:hover {
+  opacity: 0.8;
+}
+
+.topbar .right { gap: 0.25rem; }
+.topbar #current-date, .topbar #current-time { color: var(--muted); }
 .date-toggle {
   border: none;
   background: transparent;

@@ -4,6 +4,79 @@ let enabledPrayers = {};
 let cityNames = [];
 let isInteractingWithCityResults = false;
 
+// NGO/Trust data for Zakat & Sadqa donations
+const NGOS = [
+  {
+    id: 1,
+    name: "Dar-ul-Uloom Rahimiyyah Trust",
+    description: "Supporting Islamic education and community welfare",
+    zakaat: {
+      upi: "darululoom@upi",
+      bank: {
+        name: "J&K Bank",
+        account: "1234567890",
+        ifsc: "JAKA0001234",
+        accountHolder: "Dar-ul-Uloom Rahimiyyah Trust"
+      }
+    },
+    sadqa: {
+      upi: "darululoom.sadqa@upi",
+      bank: {
+        name: "J&K Bank",
+        account: "0987654321",
+        ifsc: "JAKA0001234",
+        accountHolder: "Dar-ul-Uloom Rahimiyyah Sadqa Fund"
+      }
+    }
+  },
+  {
+    id: 2,
+    name: "Kashmir Relief Fund",
+    description: "Providing emergency aid and community support",
+    zakaat: {
+      upi: "kashmirrelief@upi",
+      bank: {
+        name: "HDFC Bank",
+        account: "1111222233334444",
+        ifsc: "HDFC0001234",
+        accountHolder: "Kashmir Relief Fund (Zakaat)"
+      }
+    },
+    sadqa: {
+      upi: "kashmirrelief.sadqa@upi",
+      bank: {
+        name: "HDFC Bank",
+        account: "5555666677778888",
+        ifsc: "HDFC0001234",
+        accountHolder: "Kashmir Relief Fund (Sadqa)"
+      }
+    }
+  },
+  {
+    id: 3,
+    name: "Valley Education Trust",
+    description: "Supporting education for underprivileged children",
+    zakaat: {
+      upi: "valleyedu@upi",
+      bank: {
+        name: "PNB",
+        account: "9999888877776666",
+        ifsc: "PUNB0001234",
+        accountHolder: "Valley Education Trust"
+      }
+    },
+    sadqa: {
+      upi: "valleyedu.sadqa@upi",
+      bank: {
+        name: "PNB",
+        account: "1212121212121212",
+        ifsc: "PUNB0001234",
+        accountHolder: "Valley Education Trust Sadqa"
+      }
+    }
+  }
+];
+
 const PRAYER_LABELS = {
   "Fajr": "Subah",
   "Sunrise": "Zawaal",
@@ -27,14 +100,27 @@ const cityResults = document.getElementById("cityResults");
 // topbar elements
 const currentDateEl = document.getElementById("current-date");
 const currentTimeEl = document.getElementById("current-time");
-const notifyGlobal = document.getElementById("notifyGlobal");
 const nextNameEl = document.getElementById("next-name");
 const nextTimeEl = document.getElementById("next-time");
 const nextCountdownEl = document.getElementById("next-countdown");
-const themeToggle = document.getElementById("themeToggle");
 const offsetText = document.getElementById("offset-text");
 const toastContainer = document.getElementById("toast-container");
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+
+// Menu elements
+const menuToggle = document.getElementById("menuToggle");
+const menuClose = document.getElementById("menuClose");
+const menu = document.getElementById("menu");
+const menuBackdrop = document.getElementById("menuBackdrop");
+const mainPageLink = document.getElementById("mainPageLink");
+const donationsLink = document.getElementById("donationsLink");
+const mainPage = document.getElementById("mainPage");
+const donationsPage = document.getElementById("donationsPage");
+const ngoList = document.getElementById("ngoList");
+
+// Menu toggle buttons (synced with topbar equivalents)
+const menuThemeToggle = document.getElementById("menuThemeToggle");
+const menuNotifyToggle = document.getElementById("menuNotifyToggle");
 
 let deferredInstallPrompt = null;
 const installBtn = document.getElementById('installBtn');
@@ -956,7 +1042,6 @@ function scheduleNotifications() {
   }
 }
 
-if (notifyGlobal) notifyGlobal.onclick = enableNotifications;
 if (currentDateEl) currentDateEl.onclick = toggleCalendarMode;
 updateNotifyIconState();
 
@@ -1249,3 +1334,207 @@ window.addEventListener('appinstalled', () => {
   try { localStorage.setItem('pwaInstallPromptShown', '1'); } catch (e) {}
   if (installBtn) installBtn.classList.add('hidden');
 });
+
+// ==== MENU & NAVIGATION ====
+function openMenu() {
+  menu.classList.add('active');
+  menuBackdrop.classList.add('active');
+  menu.setAttribute('aria-hidden', 'false');
+  menuBackdrop.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMenu() {
+  menu.classList.remove('active');
+  menuBackdrop.classList.remove('active');
+  menu.setAttribute('aria-hidden', 'true');
+  menuBackdrop.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function toggleMenu() {
+  if (menu.classList.contains('active')) {
+    closeMenu();
+  } else {
+    openMenu();
+  }
+}
+
+function switchToPage(pageId) {
+  // Hide all pages
+  const pages = document.querySelectorAll('.page');
+  pages.forEach(page => page.classList.remove('active'));
+  
+  // Show selected page
+  const page = document.getElementById(pageId);
+  if (page) page.classList.add('active');
+  
+  // Hide footer on non-main pages
+  const mainFooter = document.getElementById('mainPageFooter');
+  if (mainFooter) {
+    mainFooter.style.display = pageId === 'mainPage' ? 'block' : 'none';
+  }
+  
+  // Close menu
+  closeMenu();
+}
+
+function renderNGOList() {
+  if (!ngoList) return;
+  
+  ngoList.innerHTML = '';
+  
+  NGOS.forEach(ngo => {
+    const card = document.createElement('div');
+    card.className = 'ngo-card';
+    
+    const header = document.createElement('div');
+    header.className = 'ngo-card-header';
+    
+    const title = document.createElement('h3');
+    title.className = 'ngo-card-title';
+    title.textContent = ngo.name;
+    
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'ngo-card-toggle';
+    toggleBtn.type = 'button';
+    toggleBtn.textContent = '▼';
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    
+    header.appendChild(title);
+    header.appendChild(toggleBtn);
+    
+    const description = document.createElement('p');
+    description.className = 'ngo-card-description';
+    description.textContent = ngo.description;
+    
+    const details = document.createElement('div');
+    details.className = 'ngo-card-details';
+    
+    // Zakaat section
+    const zakaat = document.createElement('div');
+    zakaat.className = 'account-section';
+    zakaat.innerHTML = `
+      <div class="account-title">Zakaat Account</div>
+      <div class="account-detail">
+        <div class="account-detail-label">Bank Name:</div>
+        ${ngo.zakaat.bank.name}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">Account:</div>
+        ${ngo.zakaat.bank.account}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">IFSC:</div>
+        ${ngo.zakaat.bank.ifsc}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">Account Holder:</div>
+        ${ngo.zakaat.bank.accountHolder}
+      </div>
+      ${ngo.zakaat.upi ? `<a href="upi://pay?pa=${ngo.zakaat.upi}&tn=Zakaat" class="account-link">Pay via UPI</a>` : ''}
+    `;
+    
+    // Sadqa section
+    const sadqa = document.createElement('div');
+    sadqa.className = 'account-section';
+    sadqa.innerHTML = `
+      <div class="account-title">Sadqa Account</div>
+      <div class="account-detail">
+        <div class="account-detail-label">Bank Name:</div>
+        ${ngo.sadqa.bank.name}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">Account:</div>
+        ${ngo.sadqa.bank.account}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">IFSC:</div>
+        ${ngo.sadqa.bank.ifsc}
+      </div>
+      <div class="account-detail">
+        <div class="account-detail-label">Account Holder:</div>
+        ${ngo.sadqa.bank.accountHolder}
+      </div>
+      ${ngo.sadqa.upi ? `<a href="upi://pay?pa=${ngo.sadqa.upi}&tn=Sadqa" class="account-link">Pay via UPI</a>` : ''}
+    `;
+    
+    details.appendChild(zakaat);
+    details.appendChild(sadqa);
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    
+    // Toggle details on card click
+    toggleBtn.addEventListener('click', () => {
+      const isExpanded = details.classList.contains('expanded');
+      details.classList.toggle('expanded');
+      toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+      toggleBtn.textContent = isExpanded ? '▼' : '▲';
+    });
+    
+    ngoList.appendChild(card);
+  });
+}
+
+// Menu event listeners
+if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
+if (menuClose) menuClose.addEventListener('click', closeMenu);
+if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
+
+// Keyboard: Escape closes menu
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && menu && menu.classList.contains('active')) {
+    closeMenu();
+  }
+});
+
+// Page navigation
+if (mainPageLink) {
+  mainPageLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchToPage('mainPage');
+  });
+}
+
+if (donationsLink) {
+  donationsLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    renderNGOList();
+    switchToPage('donationsPage');
+  });
+}
+
+// Sync menu toggles with topbar equivalents
+function updateMenuToggleStates() {
+  const isDark = document.documentElement.classList.contains('theme-dark');
+  const isNotifyEnabled = ("Notification" in window) && Notification.permission === "granted";
+  
+  if (menuThemeToggle) {
+    menuThemeToggle.classList.toggle('active', isDark);
+    menuThemeToggle.setAttribute('aria-pressed', String(isDark));
+  }
+  
+  if (menuNotifyToggle) {
+    menuNotifyToggle.classList.toggle('active', isNotifyEnabled);
+    menuNotifyToggle.setAttribute('aria-pressed', String(isNotifyEnabled));
+  }
+}
+
+if (menuThemeToggle) {
+  menuThemeToggle.addEventListener('click', () => {
+    const isDark = !document.documentElement.classList.contains('theme-dark');
+    applyTheme(isDark);
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateMenuToggleStates();
+  });
+}
+
+if (menuNotifyToggle) {
+  menuNotifyToggle.addEventListener('click', enableNotifications);
+}
+
+// Update menu states periodically
+setInterval(updateMenuToggleStates, 2000);
+updateMenuToggleStates();
