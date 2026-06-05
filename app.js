@@ -130,7 +130,7 @@ const zakatSilverOwned = document.getElementById("zakatSilverOwned");
 const zakatOtherAssets = document.getElementById("zakatOtherAssets");
 const zakatExpenses = document.getElementById("zakatExpenses");
 const zakatLent = document.getElementById("zakatLent");
-const zakatThresholdType = document.getElementById("zakatThresholdType");
+const zakatDebts = document.getElementById("zakatDebts");
 const zakatGoldCost = document.getElementById("zakatGoldCost");
 const zakatSilverCost = document.getElementById("zakatSilverCost");
 const zakatResult = document.getElementById("zakatResult");
@@ -1421,7 +1421,8 @@ function formatMoney(value) {
 }
 
 function getZakatThresholdBasis() {
-  return zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
+  const checked = document.querySelector('input[name="zakatThresholdType"]:checked');
+  return checked && checked.value === 'gold' ? 'gold' : 'silver';
 }
 
 function calculateZakat() {
@@ -1436,7 +1437,7 @@ function calculateZakat() {
     - readNumberInput(zakatDebts);
   const expenses = readNumberInput(zakatExpenses);
   const netAssets = Math.max(grossAssets - expenses, 0);
-  const thresholdType = zakatThresholdType && zakatThresholdType.value === 'gold' ? 'gold' : 'silver';
+  const thresholdType = getZakatThresholdBasis();
   const basisGrams = ZAKAT_GRAMS[thresholdType];
   const costPerGram = thresholdType === 'gold' ? readNumberInput(zakatGoldCost) : readNumberInput(zakatSilverCost);
   const effectiveNisab = basisGrams * costPerGram;
@@ -1460,12 +1461,11 @@ function calculateZakat() {
 }
 
 function resetZakatCalculator() {
-  [zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatDebts,zakatGoldCost, zakatSilverCost].forEach(input => {
+  [zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatDebts, zakatGoldCost, zakatSilverCost].forEach(input => {
     if (input) input.value = '0';
   });
-  if (zakatThresholdType) {
-    zakatThresholdType.value = 'silver';
-  }
+  const silverRadio = document.querySelector('input[name="zakatThresholdType"][value="silver"]');
+  if (silverRadio) silverRadio.checked = true;
   calculateZakat();
 }
 
@@ -1477,8 +1477,8 @@ async function renderNGOList() {
   const container = ngoList.parentElement;
   if (!searchInput && container) {
     const searchWrap = document.createElement('div');
-    searchWrap.className = 'ngo-search';
-    searchWrap.innerHTML = `<input id="ngoSearch" placeholder="Search organizations" aria-label="Search organizations" />`;
+    searchWrap.className = 'donations-search-wrap';
+    searchWrap.innerHTML = `<input id="ngoSearch" class="city-search" placeholder="Search for organizations" aria-label="Search for organizations" />`;
     container.insertBefore(searchWrap, ngoList);
     searchInput = document.getElementById('ngoSearch');
   }
@@ -1665,17 +1665,15 @@ if (zakatResetBtn) {
   zakatResetBtn.addEventListener('click', resetZakatCalculator);
 }
 
-[zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatGoldCost, zakatSilverCost].forEach(input => {
+[zakatCash, zakatInvestments, zakatGoldOwned, zakatSilverOwned, zakatOtherAssets, zakatExpenses, zakatLent, zakatDebts, zakatGoldCost, zakatSilverCost].forEach(input => {
   if (input) {
     input.addEventListener('input', calculateZakat);
   }
 });
 
-if (zakatThresholdType) {
-  zakatThresholdType.addEventListener('change', () => {
-    calculateZakat();
-  });
-}
+document.querySelectorAll('input[name="zakatThresholdType"]').forEach(radio => {
+  radio.addEventListener('change', calculateZakat);
+});
 
 calculateZakat();
 

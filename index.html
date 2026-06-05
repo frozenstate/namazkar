@@ -38,6 +38,7 @@
       </button>
       <button id="installBtn" class="icon-button hidden" type="button" aria-label="Install app" title="Install app">
         <img class="icon-img" src="icons/install.svg" alt="Install" width="20" height="20" />
+        <span class="install-label">Install</span>
       </button>
     </div>
     <div class="right">
@@ -137,9 +138,6 @@
         <h1>Zakat Calculator</h1>
       </div>
       <p class="page-intro">Estimate your zakat using assets, gold, silver, and debts. Zakat is calculated at 2.5% of your net zakatable assets.</p>
-      <p class="zakat-note">
-          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
-        </p>
 
       <form id="zakatForm" class="zakat-card" novalidate>
         <div class="zakat-grid">
@@ -198,17 +196,19 @@
           </label>
           <label class="zakat-field">
             <span>Nisab basis</span>
-            <select id="zakatThresholdType">
-              <option value="silver" selected>Silver</option>
-              <option value="gold">Gold</option>
-            </select>
+            <div class="zakat-radio-group">
+              <label class="zakat-radio">
+                <input type="radio" name="zakatThresholdType" value="silver" checked />
+                <span>Silver</span>
+              </label>
+              <label class="zakat-radio">
+                <input type="radio" name="zakatThresholdType" value="gold" />
+                <span>Gold</span>
+              </label>
+            </div>
             <small class="zakat-help">Choose which nisab threshold to use. Local scholars recommend using the silver threshold.</small>
           </label>
         </div>
-
-        <p class="zakat-note">
-          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
-        </p>
 
         <div class="zakat-actions">
           <button id="zakatCalculateBtn" class="details-btn" type="submit">Calculate zakat</button>
@@ -216,6 +216,10 @@
         </div>
 
         <div id="zakatResult" class="zakat-result" aria-live="polite"></div>
+
+        <p class="zakat-note zakat-disclaimer">
+          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
+        </p>
       </form>
     </div>
   </div>

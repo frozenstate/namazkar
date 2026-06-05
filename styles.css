@@ -256,13 +256,17 @@ select, button {
 
 /* NGO Grid Styles */
 .ngo-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.9rem;
   margin-bottom: 2rem;
 }
 
 .ngo-card {
+  flex: 0 1 160px;
+  min-width: 150px;
+  max-width: 220px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--card);
@@ -301,6 +305,7 @@ select, button {
   min-height: 2.3em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
@@ -439,8 +444,15 @@ select, button {
 .ngo-modal .modal-row { margin: 0.5rem 0; color: var(--muted); }
 .ngo-modal .modal-actions { display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem; }
 .ngo-modal .close-btn { padding:0.45rem 0.8rem; border-radius:6px; border:1px solid var(--border); background:transparent; cursor:pointer; }
-.ngo-search { margin-bottom: 0.75rem; }
-.ngo-search input { width: 100%; padding: 0.6rem; border-radius:8px; border:1px solid var(--border); }
+.donations-search-wrap {
+  position: relative;
+  width: min(100%, 300px);
+  margin: 0 auto 0.75rem;
+}
+
+.donations-search-wrap .city-search {
+  width: 100%;
+}
 
 .zakat-card {
   display: flex;
@@ -455,9 +467,16 @@ select, button {
 
 .zakat-grid,
 .zakat-nisab {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.75rem;
+}
+
+.zakat-grid > .zakat-field,
+.zakat-nisab > .zakat-field {
+  flex: 0 1 calc(50% - 0.75rem);
+  min-width: 180px;
 }
 
 .zakat-nisab {
@@ -512,10 +531,39 @@ select, button {
   border-color: var(--accent);
 }
 
+.zakat-radio-group {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.zakat-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.zakat-radio input[type="radio"] {
+  width: auto;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.zakat-disclaimer {
+  margin-top: 0.75rem;
+  opacity: 0.85;
+}
+
 .zakat-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .zakat-note {
@@ -563,9 +611,9 @@ select, button {
 }
 
 @media (max-width: 600px) {
-  .zakat-grid,
-  .zakat-nisab {
-    grid-template-columns: 1fr;
+  .zakat-grid > .zakat-field,
+  .zakat-nisab > .zakat-field {
+    flex: 1 1 100%;
   }
 }
 
@@ -825,6 +873,17 @@ small { color: var(--muted); }
   color: #9ca3af; /* gray */
 }
 .icon-button.muted { color: #9ca3af; }
+
+.install-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#menuToggle .icon-img {
+  width: 24px;
+  height: 24px;
+}
 .time .name { display: flex; align-items: center; gap: 0.4rem; }
 .time .time-value { display: flex; align-items: center; gap: 0.4rem; }
 /* Icon sizes (fallback if not set inline) */
@@ -865,6 +924,8 @@ small { color: var(--muted); }
 }
 @media (max-width: 600px) {
   .topbar .left { flex-direction: column; align-items: flex-start; }
+  #menuToggle .icon-img { width: 28px; height: 28px; }
+  .install-label { font-size: 0.85rem; }
   #current-date, #current-time { display: block; }
   .date-toggle {
     max-width: min(82vw, 18rem);
