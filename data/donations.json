@@ -3,6 +3,7 @@
     "id": 1,
     "name": "Athrout Kashmir",
     "city": "Srinagar",
+    "full_address": "Bulbul Lankar, Nalahmar Road, Nawakadal, Srinagar",
     "description": "Raise your helping hand for the helpless people.",
     "zakaat": {
       "bank": {
@@ -27,6 +28,7 @@
     "id": 2,
     "name": "J&K Yateem Trust",
     "city": "Srinagar",
+    "full_address": "Baran Pathar, Haft Chinar, Opp. Iqbal Park Near Hotel New SunShine, Srinagar",
     "description": "Well-known trust operating since 1972.",
     "zakaat": null,
     "sadqa": {
@@ -43,6 +45,7 @@
     "id": 3,
     "name": "J&K Yateem Khanah Raahat Manzil",
     "city": "Srinagar",
+    "full_address": "Raahat Manzil, Bemina Crossing, Chattabal, Srinagar",
     "description": "Well-known orphanage operating from Chattabal.",
     "zakaat": null,
     "sadqa": {

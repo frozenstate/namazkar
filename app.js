@@ -1559,7 +1559,7 @@ async function renderNGOList() {
     const typesText = types.length === 0 ? 'Donations' : (types.length === 2 ? 'Zakat & Sadqa' : types[0] + ' only');
     content.innerHTML = `
       <h3>${escapeHtml(ngo.name || '')}</h3>
-      <div class="modal-row modal-location"><img src="icons/location.svg" class="icon-img modal-location-icon" alt="Location" width="14" height="14"/><span>${escapeHtml(ngo.city || '')}</span></div>
+      <div class="modal-row modal-location"><img src="icons/location.svg" class="icon-img modal-location-icon" alt="Location" width="14" height="14"/><span>${escapeHtml(ngo.full_address || '')}</span></div>
       <div class="modal-row">${escapeHtml(typesText)}</div>
       <div class="modal-row">${escapeHtml(ngo.description || '')}</div>
       <div class="modal-row">${renderAccountsHtml(ngo)}</div>
