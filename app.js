@@ -352,7 +352,7 @@ function formatAdminHijriDate(now) {
 
 function renderCalendarDate(now = new Date()) {
   if (calendarMode === "gregorian") return formatGregorianDate(now);
-  return formatAdminHijriDate(now) || "Connect to internet to fetch hijri date";
+  return formatAdminHijriDate(now) || "Reload to fetch hijri date";
 }
 
 function updateDateToggleState(formattedDate) {
@@ -1425,8 +1425,45 @@ function getZakatThresholdBasis() {
   return checked && checked.value === 'gold' ? 'gold' : 'silver';
 }
 
-function calculateZakat() {
+function updateRequiredPriceField() {
+  const basis = getZakatThresholdBasis();
+  const goldInput = zakatGoldCost;
+  const silverInput = zakatSilverCost;
+  goldInput.required = basis === 'gold';
+  silverInput.required = basis === 'silver';
+  goldInput.classList.remove('field-error');
+  silverInput.classList.remove('field-error');
+}
+
+function validatePriceInput() {
+  const basis = getZakatThresholdBasis();
+  const input = basis === 'gold' ? zakatGoldCost : zakatSilverCost;
+  if (!input) return true;
+  const value = readNumberInput(input);
+  if (value <= 0) {
+    input.classList.add('field-error');
+    return false;
+  }
+  input.classList.remove('field-error');
+  return true;
+}
+
+function calculateZakat(validate = false) {
   if (!zakatResult) return;
+
+  // Clear previous errors
+  if (zakatGoldCost) zakatGoldCost.classList.remove('field-error');
+  if (zakatSilverCost) zakatSilverCost.classList.remove('field-error');
+
+  if (validate && !validatePriceInput()) {
+    zakatResult.innerHTML = `
+      <div class="zakat-summary ineligible">
+        <strong>Missing price</strong>
+        <div>Please enter the ${getZakatThresholdBasis()} price to calculate zakat.</div>
+      </div>
+    `;
+    return;
+  }
 
   const grossAssets = readNumberInput(zakatCash)
     + readNumberInput(zakatInvestments)
@@ -1447,14 +1484,8 @@ function calculateZakat() {
   zakatResult.innerHTML = `
     <div class="zakat-summary ${isEligible ? 'eligible' : 'ineligible'}">
       <strong>${isEligible ? 'Zakat due' : 'Below nisab'}</strong>
-      <div>Threshold basis: ${thresholdType === 'gold' ? 'Gold' : 'Silver'}</div>
-      <div>Nisab weight: ${formatMoney(basisGrams)} g</div>
-      <div>Gross assets before expenses: ${formatMoney(grossAssets)}</div>
-      <div>Average monthly expenses: ${formatMoney(expenses)}</div>
-      <div>Amount lent: ${formatMoney(readNumberInput(zakatLent))}</div>
-      <div>Amount owed (debts): ${formatMoney(readNumberInput(zakatDebts))}</div>
       <div>Net zakatable assets: ${formatMoney(netAssets)}</div>
-      <div>Nisab threshold: ${effectiveNisab > 0 ? formatMoney(effectiveNisab) : 'Not set'}</div>
+      <div>Nisab threshold: ${effectiveNisab > 0 ? formatMoney(effectiveNisab) : ''}</div>
       <div class="zakat-total">Estimated zakat: ${formatMoney(zakatAmount)}</div>
     </div>
   `;
@@ -1657,7 +1688,7 @@ if (zakatLink) {
 if (zakatForm) {
   zakatForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    calculateZakat();
+    calculateZakat(true);
   });
 }
 
@@ -1672,9 +1703,13 @@ if (zakatResetBtn) {
 });
 
 document.querySelectorAll('input[name="zakatThresholdType"]').forEach(radio => {
-  radio.addEventListener('change', calculateZakat);
+  radio.addEventListener('change', () => {
+    updateRequiredPriceField();
+    calculateZakat();
+  });
 });
 
+updateRequiredPriceField();
 calculateZakat();
 
 // Sync menu toggles with topbar equivalents

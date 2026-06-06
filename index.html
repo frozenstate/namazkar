@@ -33,12 +33,9 @@
 <body>
   <header class="topbar">
     <div class="left">
-      <button id="menuToggle" class="icon-button" type="button" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="menu">
+      <button id="menuToggle" class="icon-button" type="button" aria-label="Menu" title="Open Navigation Menu" aria-expanded="false" aria-controls="menu">
         <img class="icon-img" src="icons/menu.svg" alt="Menu" width="20" height="20" />
-      </button>
-      <button id="installBtn" class="icon-button hidden" type="button" aria-label="Install app" title="Install app">
-        <img class="icon-img" src="icons/install.svg" alt="Install" width="20" height="20" />
-        <span class="install-label">Install</span>
+        <span class="menu-label">Menu</span>
       </button>
     </div>
     <div class="right">
@@ -60,6 +57,7 @@
         <li><a href="#" id="mainPageLink" class="menu-item"><img class="menu-item-icon" src="icons/mosque.svg" alt="" aria-hidden="true" width="16" height="16" /> Prayer Times</a></li>
         <li><a href="#" id="donationsLink" class="menu-item"><img class="menu-item-icon" src="icons/donate.svg" alt="" aria-hidden="true" width="16" height="16" /> Donate</a></li>
         <li><a href="#" id="zakatLink" class="menu-item"><img class="menu-item-icon" src="icons/calculator.svg" alt="" aria-hidden="true" width="16" height="16" /> Zakat Calculator</a></li>
+        <li><button id="installBtn" class="menu-item menu-install hidden" type="button"><img class="menu-item-icon" src="icons/install.svg" alt="" aria-hidden="true" width="16" height="16" /> Install App</button></li>
         <li class="menu-divider"></li>
         <li class="menu-setting">
           <div class="menu-item-row">
@@ -164,7 +162,7 @@
           <label class="zakat-field">
             <span>Investments / business</span>
             <input id="zakatInvestments" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
-            <small class="zakat-help">Zakatable investments (e.g. land purchased with the intent of resale) and other business assets.</small>
+            <small class="zakat-help">Zakatable investments (e.g. property intended for resale) and other business assets.</small>
           </label>
           <label class="zakat-field">
             <span>Other zakatable assets</span>
@@ -186,12 +184,12 @@
         <div class="zakat-nisab">
           <label class="zakat-field">
             <span>Gold Cost (per g)</span>
-            <input id="zakatGoldCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <input id="zakatGoldCost" type="number" min="0" step="0.01" placeholder="Please enter gold price" inputmode="decimal" />
             <small class="zakat-help">Local gold price (per gram).</small>
           </label>
           <label class="zakat-field">
             <span>Silver Cost (per g)</span>
-            <input id="zakatSilverCost" type="number" min="0" step="0.01" value="0" inputmode="decimal" />
+            <input id="zakatSilverCost" type="number" min="0" step="0.01" placeholder="Please enter silver price" inputmode="decimal" />
             <small class="zakat-help">Local silver price (per gram).</small>
           </label>
           <label class="zakat-field">
@@ -218,7 +216,7 @@
         <div id="zakatResult" class="zakat-result" aria-live="polite"></div>
 
         <p class="zakat-note zakat-disclaimer">
-          Disclaimer: The calculator is still under construction. For now, please use your local market prices for gold and silver, and consult a local scholar for complex situations.
+          This calculator is a work in progress. Please use local prices for gold and silver, and consult a local scholar for complex situations.
         </p>
       </form>
     </div>
