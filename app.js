@@ -89,6 +89,8 @@ const PRAYER_LABELS = {
 const CALENDAR_MODE_KEY = "calendarMode";
 const CALENDAR_SETTINGS_KEY = "calendarSettings";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const EARLIER_ASR_KEY = "Asr (Earlier Time)";
+let earlierAsrEnabled = localStorage.getItem('earlierAsr') === 'true';
 let calendarSettings = loadCachedCalendarSettings();
 let calendarMode = localStorage.getItem(CALENDAR_MODE_KEY) === "gregorian" ? "gregorian" : "hijri";
 let calendarSettingsPromise = null;
@@ -144,6 +146,7 @@ const ZAKAT_GRAMS = {
 // Menu toggle buttons (synced with topbar equivalents)
 const menuThemeToggle = document.getElementById("menuThemeToggle");
 const menuNotifyToggle = document.getElementById("menuNotifyToggle");
+const menuEarlierAsrToggle = document.getElementById("menuEarlierAsrToggle");
 
 let deferredInstallPrompt = null;
 const installBtn = document.getElementById('installBtn');
@@ -482,6 +485,18 @@ async function loadData() {
 
 function populateCities() {
   cityNames = Object.keys(cities.cities);
+  // Build a reverse map: alt name → original city name
+  window.__cityAltMap = {};
+  for (const [name, entry] of Object.entries(cities.cities)) {
+    if (entry.alt && Array.isArray(entry.alt)) {
+      for (const alt of entry.alt) {
+        const normalized = alt.toLowerCase().trim();
+        if (normalized && normalized !== name.toLowerCase()) {
+          window.__cityAltMap[normalized] = name;
+        }
+      }
+    }
+  }
   updateSelectedCityPlaceholder();
   bindCitySearch();
   renderCityResults(citySearch?.value || "", false);
@@ -536,11 +551,26 @@ function getMatchingCities(query) {
     return cityNames.slice();
   }
 
-  return cityNames
+  // Direct match against city names
+  const directMatches = cityNames
     .map(city => ({ city, score: scoreCity(trimmed, city) }))
     .filter(entry => entry.score >= 0)
     .sort((a, b) => b.score - a.score || a.city.localeCompare(b.city))
     .map(entry => entry.city);
+
+  // Alt-name match: check alt names and insert any original city not already found
+  const altMap = window.__cityAltMap || {};
+  const seen = new Set(directMatches);
+  for (const [altKey, originalCity] of Object.entries(altMap)) {
+    if (seen.has(originalCity)) continue;
+    if (scoreCity(trimmed, altKey) >= 0) {
+      const score = scoreCity(trimmed, originalCity);
+      directMatches.push(originalCity);
+      seen.add(originalCity);
+    }
+  }
+
+  return directMatches;
 }
 
 function updateSelectedCityPlaceholder() {
@@ -746,9 +776,16 @@ function renderTimes() {
     offsetText.textContent = `${offset >= 0 ? "+" : ""}${offset} min`;
   }
 
+  // Build times object — swap Asr if Earlier Asr toggle is on, and skip the raw key
+  const times = { ...baseTimes };
+  if (earlierAsrEnabled && times[EARLIER_ASR_KEY]) {
+    times["Asr"] = times[EARLIER_ASR_KEY];
+  }
+  delete times[EARLIER_ASR_KEY];
+
   timesDiv.innerHTML = "";
-  for (const prayer in baseTimes) {
-    const adjusted24 = addMinutes(baseTimes[prayer], offset);
+  for (const prayer in times) {
+    const adjusted24 = addMinutes(times[prayer], offset);
     const adjusted = formatTime12(adjusted24);
     const prayerLabel = getPrayerLabel(prayer);
     const row = document.createElement("div");
@@ -1639,12 +1676,42 @@ async function renderNGOList() {
   // initial render
   generateCards(data);
 
-  // search handler
-  if (searchInput) {
+  // Lightweight fuzzy search: exact / substring match falls back to
+  // Levenshtein-distance matching so alternate spellings also work.
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => i);
+    for (let j = 1; j <= n; j++) {
+      let prev = dp[0];
+      dp[0] = j;
+      for (let i = 1; i <= m; i++) {
+        const tmp = dp[i];
+        dp[i] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(dp[i], dp[i - 1], prev);
+        prev = tmp;
+      }
+    }
+    return dp[m];
+  }
+
+  function fuzzyMatch(query, target) {
+    const q = query.toLowerCase();
+    const t = target.toLowerCase();
+    if (t.includes(q)) return true;
+    const threshold = Math.max(1, Math.ceil(q.length / 3));
+    const words = t.split(/\s+/);
+    return words.some(word => levenshtein(q, word) <= threshold);
+  }
+
+  // search handler — only attach once
+  if (searchInput && !searchInput.dataset.searchAttached) {
+    searchInput.dataset.searchAttached = '1';
     searchInput.addEventListener('input', (e) => {
       const q = String(e.target.value || '').trim().toLowerCase();
       if (!q) return generateCards(data);
-      const filtered = data.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.city && d.city.toLowerCase().includes(q)));
+      const filtered = data.filter(d =>
+        fuzzyMatch(q, d.name || '') ||
+        fuzzyMatch(q, d.city || '')
+      );
       generateCards(filtered);
     });
   }
@@ -1726,6 +1793,11 @@ function updateMenuToggleStates() {
     menuNotifyToggle.classList.toggle('active', isNotifyEnabled);
     menuNotifyToggle.setAttribute('aria-pressed', String(isNotifyEnabled));
   }
+
+  if (menuEarlierAsrToggle) {
+    menuEarlierAsrToggle.classList.toggle('active', earlierAsrEnabled);
+    menuEarlierAsrToggle.setAttribute('aria-pressed', String(earlierAsrEnabled));
+  }
 }
 
 if (menuThemeToggle) {
@@ -1739,6 +1811,15 @@ if (menuThemeToggle) {
 
 if (menuNotifyToggle) {
   menuNotifyToggle.addEventListener('click', enableNotifications);
+}
+
+if (menuEarlierAsrToggle) {
+  menuEarlierAsrToggle.addEventListener('click', () => {
+    earlierAsrEnabled = !earlierAsrEnabled;
+    localStorage.setItem('earlierAsr', String(earlierAsrEnabled));
+    updateMenuToggleStates();
+    renderTimes();
+  });
 }
 
 // Update menu states periodically

@@ -6,7 +6,7 @@
    <h1>Namaz Kar?</h1>
 </div>
 
-Prayer times for the Kashmir Valley based on [the official Meeqat published by Dar-ul-Uloom Rahimiyyah, Bandipur](http://raheemiyyah.com/meeqat-us-salat/). This repo contains a small, offline-capable web app that shows today's prayer times, highlights the next prayer, and supports browser notifications, including Web Push when the backend is configured.
+Prayer times for the Kashmir Valley based on the official Meeqat published by [Dar-ul-Uloom Rahimiyyah, Bandipur](http://raheemiyyah.com/meeqat-us-salat/) & [Jamiat Ahlihadees J&K](https://www.jahjk.org) (for earlier Asr only). This repo contains a small, offline-capable web app that shows today's prayer times, highlights the next prayer, and supports browser notifications, including Web Push when the backend is configured.
 
 Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 
@@ -49,6 +49,7 @@ Live deployment: [namazkar.vercel.app](https://namazkar.vercel.app)
 - Donations: Added the donate page with several NGOs listed in the database with full details.
 - Zakat Calculator: Added a zakat calculator, with dynamic pricing updates for gold and silver (WIP).
 - UI changes: Moved dark mode and notification toggle inside navigation menu.
+- Earlier Asr: Added earlier Asr timings, although need someone (or some time) to properly verify the times.
 
 **Data Format**
 - `table.json`
