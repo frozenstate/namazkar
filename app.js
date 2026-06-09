@@ -815,7 +815,9 @@ function enableAllPrayers() {
   const key = todayKey();
   const baseTimes = timetable && timetable.days && timetable.days[key];
   if (!baseTimes) return;
-  for (const prayer in baseTimes) {
+  const times = { ...baseTimes };
+  delete times[EARLIER_ASR_KEY];
+  for (const prayer in times) {
     enabledPrayers[prayer] = true;
   }
   saveEnabledPrayers();
@@ -869,12 +871,18 @@ function findNextPrayer() {
   const key = todayKey();
   const baseTimes = timetable.days[key];
   const offset = cities.cities[selectedCity].offset;
+  // Apply the same Asr swap and filtering as renderTimes()
+  const times = { ...baseTimes };
+  if (earlierAsrEnabled && times[EARLIER_ASR_KEY]) {
+    times["Asr"] = times[EARLIER_ASR_KEY];
+  }
+  delete times[EARLIER_ASR_KEY];
   const now = new Date();
   let next = null;
-  for (const prayer in baseTimes) {
-    const at = parseTimeToDate(baseTimes[prayer], offset);
+  for (const prayer in times) {
+    const at = parseTimeToDate(times[prayer], offset);
     if (at > now && (!next || at < next.at)) {
-      const t24 = addMinutes(baseTimes[prayer], offset);
+      const t24 = addMinutes(times[prayer], offset);
       next = { key: prayer, name: getPrayerLabel(prayer), at, timeStr: formatTime12(t24) };
     }
   }
@@ -885,11 +893,16 @@ function findNextPrayer() {
   const tkey = String(tomorrow.getDate()).padStart(2, "0") + "-" + String(tomorrow.getMonth() + 1).padStart(2, "0");
   const tTimes = timetable.days[tkey];
   if (!tTimes) return null;
+  const tProcessed = { ...tTimes };
+  if (earlierAsrEnabled && tProcessed[EARLIER_ASR_KEY]) {
+    tProcessed["Asr"] = tProcessed[EARLIER_ASR_KEY];
+  }
+  delete tProcessed[EARLIER_ASR_KEY];
   let first = null;
-  for (const prayer in tTimes) {
-    const at = parseTimeToDate(tTimes[prayer], offset, tomorrow);
+  for (const prayer in tProcessed) {
+    const at = parseTimeToDate(tProcessed[prayer], offset, tomorrow);
     if (!first || at < first.at) {
-      const t24 = addMinutes(tTimes[prayer], offset);
+      const t24 = addMinutes(tProcessed[prayer], offset);
       first = { key: prayer, name: getPrayerLabel(prayer), at, timeStr: formatTime12(t24) };
     }
   }
@@ -1079,11 +1092,16 @@ function scheduleNotifications() {
   const baseTimes = timetable.days[key];
   if (!baseTimes) return;
   const offset = cities.cities[selectedCity].offset;
+  const times = { ...baseTimes };
+  if (earlierAsrEnabled && times[EARLIER_ASR_KEY]) {
+    times["Asr"] = times[EARLIER_ASR_KEY];
+  }
+  delete times[EARLIER_ASR_KEY];
   const now = new Date();
 
-  for (const prayer in baseTimes) {
+  for (const prayer in times) {
     if (!enabledPrayers[prayer]) continue;
-    const fireAt = parseTimeToDate(baseTimes[prayer], offset);
+    const fireAt = parseTimeToDate(times[prayer], offset);
     const ms = fireAt - now;
     // Only schedule if within next 24 hours
     if (ms > 0 && ms <= 86_400_000) {
