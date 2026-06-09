@@ -284,6 +284,29 @@ select, button {
   margin-bottom: 2rem;
 }
 
+.ngo-list-link {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.list-ngo-btn {
+  display: inline-block;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.list-ngo-btn:hover {
+  background: var(--highlight);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .ngo-card {
   flex: 0 1 160px;
   min-width: 150px;

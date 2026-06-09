@@ -57,5 +57,22 @@
       },
       "upi": null
     }
+  },
+  {
+    "id": 4,
+    "name": "Emaan Welfare Trust",
+    "city": "Sopur",
+    "full_address": "Sopur",
+    "description": "An NGO working for the upliftment of people, providing food kits, medical aid and marriage assistance",
+    "zakaat": null,
+    "sadqa": {
+      "bank": {
+        "name": "J&K Bank",
+        "account": "0309010100001935",
+        "ifsc": "JAKAOHITECH",
+        "accountHolder": "Emaan Welfare Trust"
+      },
+      "upi": "jkbmerc00474501@jkb"
+    }
   }
 ]

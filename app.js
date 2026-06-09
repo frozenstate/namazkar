@@ -1837,6 +1837,7 @@ if (menuEarlierAsrToggle) {
     localStorage.setItem('earlierAsr', String(earlierAsrEnabled));
     updateMenuToggleStates();
     renderTimes();
+    scheduleNotifications();
   });
 }
 
